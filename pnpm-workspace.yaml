@@ -1,0 +1,24 @@
+packages:
+  - .
+
+allowBuilds:
+  "@firebase/util": true
+  "@prisma/client": true
+  "@prisma/engines": true
+  esbuild: true
+  msgpackr-extract: true
+  prisma: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
+
+overrides:
+  effect: 3.20.0
+  postcss: 8.5.10
+  "exceljs>uuid": 11.1.1
+
+# Auth.js has not yet widened its Nodemailer peer range, but its mail transport
+# API is compatible with the patched 9.x release used by this application.
+peerDependencyRules:
+  allowedVersions:
+    nodemailer: ">=9.0.1"

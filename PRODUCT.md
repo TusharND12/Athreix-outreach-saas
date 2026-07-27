@@ -1,0 +1,43 @@
+# Product
+
+## Register
+
+product
+
+## Users
+
+Athreix Prospect AI serves founder-led sales teams, growth operators, agencies, SDRs, account executives, and RevOps leaders who need to turn an ideal-customer description into a qualified, actionable prospect list without assembling several disconnected tools. The default workflow is optimized for a hands-on operator at a small or mid-sized company, while retaining the density and controls needed by larger teams.
+
+The platform supports two explicit research modes. B2B mode discovers organizations and relevant professional decision-makers. B2C mode helps legitimate businesses build consumer audiences from lawful, purpose-appropriate data sources under stricter consent, sensitive-data, retention, suppression, and export controls. Internal administrators monitor users, search jobs, credits, failures, compliance events, revenue, and system health.
+
+## Product Purpose
+
+Athreix Prospect AI compresses prospect discovery, enrichment, qualification, outreach preparation, list management, and export into one dependable workflow. A user describes the audience they want in natural language or structured filters, watches a transparent background job gather and normalize results, receives explainable AI-ranked prospects, inspects supporting evidence, generates channel-specific outreach, and saves or exports only the records they are authorized to use.
+
+Success means the user can move from an idea of a customer to a trustworthy next action in minutes, with minimal manual work and without losing visibility into data quality, provenance, credit usage, or compliance constraints.
+
+## Brand Personality
+
+Decisive, precise, calm. Athreix should feel like a serious intelligence desk: fast enough for daily operators, legible under heavy information density, and quietly premium without performing sophistication. The voice is direct, useful, and evidence-led. It creates confidence through clarity rather than hype.
+
+The product borrows Perplexity's search-first clarity, Linear's speed and state discipline, Notion's calm legibility, and Clay's flexible data workflow. Brand surfaces may add Vercel-like restraint and Stripe-like editorial confidence, but the authenticated product always prioritizes the task.
+
+## Anti-references
+
+- Generic glassy AI SaaS interfaces with decorative blur, glowing gradients, or floating cards.
+- Apollo-style CRM clutter that exposes every control at once and makes the primary task hard to find.
+- Clay-like spreadsheet complexity without progressive disclosure or clear defaults.
+- Decorative dashboards made from repeated metric cards, empty charts, and ornamental motion.
+- Consumer-data growth hacks that obscure provenance, permission, sensitive attributes, or deletion rights.
+
+## Design Principles
+
+1. **Search is the front door.** Make the user's intent, scope, and next action unmistakable on every primary workflow.
+2. **Evidence earns trust.** Scores, enrichment, verification, and recommendations must expose provenance, confidence, freshness, and rationale.
+3. **Progressive power.** Start with excellent defaults and natural language; reveal professional controls when they improve a real decision.
+4. **One flow, visible state.** Background work, credits, errors, and completion states stay understandable from launch through export.
+5. **Privacy is a product behavior.** Data minimization, lawful-use gates, suppression, retention, and auditability are part of the experience, especially for B2C.
+
+## Accessibility & Inclusion
+
+WCAG 2.2 AA is the minimum baseline. Every workflow must support full keyboard operation, semantic screen-reader output, visible focus, logical heading and tab order, non-color-only states, touch targets of at least 44 by 44 CSS pixels where practical, and zoom/reflow without loss of function. Motion must respect `prefers-reduced-motion`; tables and dense data views require accessible compact alternatives on small screens. Plain-language explanations are required for AI scores, privacy controls, and errors.

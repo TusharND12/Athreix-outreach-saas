@@ -1,0 +1,32 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next
+/out
+
+# testing
+/coverage
+/playwright-report
+/test-results
+
+# production
+/build
+
+# local environments and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# database artifacts
+/prisma/*.db
+/prisma/*.db-journal
+/.athreix
+
+# misc
+.DS_Store
+*.pem
+*.log
+.vercel
+tsconfig.tsbuildinfo

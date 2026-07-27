@@ -1,0 +1,1085 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // This datasource is never connected at runtime. The schema is retained only
+  // to generate model metadata and TypeScript types for the Firestore adapter.
+  url       = "postgresql://unused:unused@127.0.0.1:1/firestore_metadata"
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ProspectMode {
+  B2B
+  B2C
+}
+
+enum LawfulBasis {
+  CONSENT
+  CONTRACT
+  LEGAL_OBLIGATION
+  VITAL_INTERESTS
+  PUBLIC_TASK
+  LEGITIMATE_INTERESTS
+}
+
+enum SearchStatus {
+  DRAFT
+  QUEUED
+  RUNNING
+  COMPLETE
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  RETRYING
+  COMPLETE
+  FAILED
+  CANCELLED
+}
+
+enum JobStage {
+  CREATED
+  SEARCHING_COMPANIES
+  FINDING_PEOPLE
+  NORMALIZING
+  DEDUPLICATING
+  ENRICHING
+  SCORING
+  PREPARING_RESULTS
+  COMPLETE
+}
+
+enum DataSubjectType {
+  PROFESSIONAL_CONTACT
+  CONSUMER
+  COMPANY
+}
+
+enum SourceType {
+  APIFY
+  FIRST_PARTY
+  PUBLIC_WEB
+  LICENSED_DATA
+  USER_PROVIDED
+  DEMO
+}
+
+enum ConsentStatus {
+  GRANTED
+  DENIED
+  WITHDRAWN
+  NOT_REQUIRED
+  UNKNOWN
+}
+
+enum SuppressionType {
+  OPT_OUT
+  DO_NOT_CONTACT
+  DELETION_REQUEST
+  LEGAL_RESTRICTION
+  BOUNCED
+  COMPLAINT
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  LIKELY
+  VERIFIED
+  INVALID
+}
+
+enum IntentLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ContactChannel {
+  EMAIL
+  LINKEDIN
+  PHONE
+  WHATSAPP
+}
+
+enum OutreachType {
+  COLD_EMAIL
+  LINKEDIN_MESSAGE
+  LINKEDIN_CONNECTION
+  FOLLOW_UP
+  WHATSAPP
+  MEETING_INVITATION
+  WEBSITE_AUDIT
+  PROPOSAL
+}
+
+enum OutreachStatus {
+  DRAFT
+  APPROVED
+  COPIED
+  SENT_EXTERNALLY
+  ARCHIVED
+}
+
+enum ExportFormat {
+  CSV
+  XLSX
+  JSON
+  PDF
+  CRM
+  AI_REPORT
+}
+
+enum ExportStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+  EXPIRED
+}
+
+enum CreditTransactionType {
+  MONTHLY_GRANT
+  PURCHASE
+  SEARCH_RESERVATION
+  SEARCH_CHARGE
+  RESERVATION_RELEASE
+  ADMIN_ADJUSTMENT
+  REFUND
+}
+
+enum SubscriptionPlan {
+  STARTER
+  GROWTH
+  SCALE
+  CUSTOM
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELLED
+}
+
+enum NotificationType {
+  SEARCH_COMPLETE
+  EXPORT_READY
+  CREDITS_LOW
+  AI_FINISHED
+  ERROR
+  COMPLIANCE
+}
+
+enum DataRequestType {
+  ACCESS
+  CORRECTION
+  DELETION
+  RESTRICTION
+  OBJECTION
+  PORTABILITY
+}
+
+enum DataRequestStatus {
+  RECEIVED
+  VERIFYING
+  IN_PROGRESS
+  COMPLETE
+  REJECTED
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String?
+  email           String?   @unique
+  emailVerified   DateTime?
+  image           String?
+  passwordHash    String?
+  timezone        String    @default("UTC")
+  isPlatformAdmin Boolean   @default(false)
+  suspendedAt     DateTime?
+  sessionVersion  Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  memberships     WorkspaceMember[]
+  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
+  searches        Search[]          @relation("SearchCreator")
+  exports         Export[]          @relation("ExportCreator")
+  outreach        Outreach[]        @relation("OutreachCreator")
+  notifications   Notification[]
+  audits          AuditLog[]        @relation("AuditActor")
+  usage           UsageLog[]
+  creditEntries   CreditLedger[]
+  savedLists      SavedList[]       @relation("ListCreator")
+  createdTasks    SalesTask[]       @relation("TaskCreator")
+  assignedTasks   SalesTask[]       @relation("TaskAssignee")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Workspace {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  ownerId          String
+  companyName      String?
+  timezone         String   @default("UTC")
+  defaultTone      String   @default("professional")
+  emailSignature   String?  @db.Text
+  defaultFilters   Json?
+  creditBalance    Int      @default(250)
+  creditReserved   Int      @default(0)
+  monthlyCreditCap Int      @default(250)
+  retentionDays    Int      @default(90)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  owner           User                   @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members         WorkspaceMember[]
+  subscriptions   Subscription[]
+  creditEntries   CreditLedger[]
+  searches        Search[]
+  companies       Company[]
+  contacts        Contact[]
+  consumers       ConsumerProspect[]
+  evidence        Evidence[]
+  consentRecords  ConsentRecord[]
+  suppressions    SuppressionEntry[]
+  folders         SavedFolder[]
+  lists           SavedList[]
+  exports         Export[]
+  notifications   Notification[]
+  audits          AuditLog[]
+  usage           UsageLog[]
+  dataRequests    DataSubjectRequest[]
+  sourceRecords   DataSourceRecord[]
+  companyResearch CompanyResearch[]
+  websiteAnalyses WebsiteAnalysis[]
+  buyingSignals   BuyingSignal[]
+  timelineEvents  CompanyTimelineEvent[]
+  tasks           SalesTask[]
+  reports         CompanyReport[]
+  researchCaches  ResearchCache[]
+
+  @@index([ownerId])
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  workspaceId            String
+  plan                   SubscriptionPlan   @default(STARTER)
+  status                 SubscriptionStatus @default(TRIALING)
+  externalCustomerId     String?
+  externalSubscriptionId String?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+}
+
+model CreditLedger {
+  id             String                @id @default(cuid())
+  workspaceId    String
+  userId         String?
+  type           CreditTransactionType
+  amount         Int
+  balanceAfter   Int
+  referenceType  String?
+  referenceId    String?
+  idempotencyKey String                @unique
+  description    String?
+  metadata       Json?
+  createdAt      DateTime              @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model Search {
+  id                           String       @id @default(cuid())
+  workspaceId                  String
+  createdById                  String
+  name                         String
+  query                        String       @db.Text
+  mode                         ProspectMode @default(B2B)
+  purpose                      String       @db.Text
+  lawfulBasis                  LawfulBasis?
+  audienceSource               String?
+  audienceSourceReference      String?
+  jurisdiction                 String?
+  legitimateInterestAssessment String?      @db.Text
+  filters                      Json?
+  interpretedQuery             Json?
+  researchPlan                 Json?
+  targetCount                  Int          @default(25)
+  reservedCredits              Int          @default(0)
+  chargedCredits               Int          @default(0)
+  reservationReleasedAt        DateTime?
+  chargedAt                    DateTime?
+  idempotencyKey               String?
+  status                       SearchStatus @default(DRAFT)
+  errorCode                    String?
+  errorMessage                 String?
+  retentionUntil               DateTime
+  completedAt                  DateTime?
+  createdAt                    DateTime     @default(now())
+  updatedAt                    DateTime     @updatedAt
+
+  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy     User               @relation("SearchCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  jobs          SearchJob[]
+  results       SearchResult[]
+  exports       Export[]
+  sourceRecords DataSourceRecord[]
+  evidence      Evidence[]
+
+  @@unique([workspaceId, createdById, idempotencyKey])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, status])
+  @@index([retentionUntil])
+}
+
+model SearchJob {
+  id                String    @id @default(cuid())
+  searchId          String
+  status            JobStatus @default(QUEUED)
+  stage             JobStage  @default(CREATED)
+  progress          Int       @default(0)
+  attempt           Int       @default(1)
+  provider          String    @default("demo")
+  externalRunId     String?
+  externalDatasetId String?
+  runToken          String?
+  heartbeatAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  errorCode         String?
+  errorMessage      String?
+  metrics           Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  search Search @relation(fields: [searchId], references: [id], onDelete: Cascade)
+
+  @@index([searchId, createdAt])
+  @@index([status, createdAt])
+  @@index([runToken])
+}
+
+model Company {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  name             String
+  normalizedName   String
+  domain           String?
+  normalizedDomain String?
+  website          String?
+  linkedinUrl      String?
+  description      String?   @db.Text
+  industry         String?
+  location         String?
+  country          String?
+  city             String?
+  employeeCount    Int?
+  employeeRange    String?
+  revenueRange     String?
+  foundedYear      Int?
+  companyType      String?
+  technologies     String[]  @default([])
+  keywords         String[]  @default([])
+  categories       String[]  @default([])
+  fundingStage     String?
+  totalFundingUsd  BigInt?
+  isHiring         Boolean?
+  logoUrl          String?
+  screenshotUrl    String?
+  socialLinks      Json?
+  websiteQuality   Int?
+  lastVerifiedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  workspace       Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contacts        Contact[]
+  results         SearchResult[]
+  evidence        Evidence[]
+  research        CompanyResearch?
+  websiteAnalysis WebsiteAnalysis?
+  buyingSignals   BuyingSignal[]
+  timelineEvents  CompanyTimelineEvent[]
+  tasks           SalesTask[]
+  reports         CompanyReport[]
+
+  @@unique([workspaceId, normalizedDomain])
+  @@index([workspaceId, normalizedName])
+  @@index([workspaceId, industry])
+}
+
+model Contact {
+  id                      String             @id @default(cuid())
+  workspaceId             String
+  companyId               String?
+  firstName               String?
+  lastName                String?
+  fullName                String
+  normalizedName          String
+  title                   String?
+  seniority               String?
+  department              String?
+  location                String?
+  country                 String?
+  linkedinUrl             String?
+  encryptedEmail          String?            @db.Text
+  emailHash               String?
+  emailMasked             String?
+  emailVerification       VerificationStatus @default(UNVERIFIED)
+  encryptedPhone          String?            @db.Text
+  phoneHash               String?
+  phoneMasked             String?
+  phoneVerification       VerificationStatus @default(UNVERIFIED)
+  decisionMakerConfidence Int?
+  lastVerifiedAt          DateTime?
+  retentionUntil          DateTime
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company        Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  results        SearchResult[]
+  evidence       Evidence[]
+  consentRecords ConsentRecord[]
+  listItems      SavedListItem[]
+
+  @@unique([workspaceId, emailHash])
+  @@unique([workspaceId, phoneHash])
+  @@unique([workspaceId, linkedinUrl])
+  @@index([workspaceId, normalizedName])
+  @@index([companyId])
+  @@index([retentionUntil])
+}
+
+model ConsumerProspect {
+  id                String             @id @default(cuid())
+  workspaceId       String
+  displayName       String
+  normalizedName    String
+  ageBand           String?
+  location          String?
+  country           String?
+  interests         String[]           @default([])
+  encryptedEmail    String?            @db.Text
+  emailHash         String?
+  emailMasked       String?
+  emailVerification VerificationStatus @default(UNVERIFIED)
+  encryptedPhone    String?            @db.Text
+  phoneHash         String?
+  phoneMasked       String?
+  phoneVerification VerificationStatus @default(UNVERIFIED)
+  consentStatus     ConsentStatus      @default(UNKNOWN)
+  consentCapturedAt DateTime?
+  retentionUntil    DateTime
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  results        SearchResult[]
+  evidence       Evidence[]
+  consentRecords ConsentRecord[]
+  listItems      SavedListItem[]
+
+  @@unique([workspaceId, emailHash])
+  @@unique([workspaceId, phoneHash])
+  @@index([workspaceId, normalizedName])
+  @@index([retentionUntil])
+}
+
+model SearchResult {
+  id                 String          @id @default(cuid())
+  searchId           String
+  companyId          String?
+  contactId          String?
+  consumerId         String?
+  score              Int
+  rank               Int?
+  buyingIntent       IntentLevel     @default(LOW)
+  summary            String?         @db.Text
+  reasons            String[]        @default([])
+  suggestedOffer     String?         @db.Text
+  recommendedChannel ContactChannel?
+  scoreBreakdown     Json?
+  profileSnapshot    Json
+  confidence         Int?
+  isSuppressed       Boolean         @default(false)
+  retentionUntil     DateTime
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  search      Search            @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  company     Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contact     Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  consumer    ConsumerProspect? @relation(fields: [consumerId], references: [id], onDelete: SetNull)
+  aiResponses AIResponse[]
+  outreach    Outreach[]
+  listItems   SavedListItem[]
+  tasks       SalesTask[]
+
+  @@unique([searchId, contactId])
+  @@unique([searchId, consumerId])
+  @@index([searchId, score])
+  @@index([contactId])
+  @@index([consumerId])
+  @@index([retentionUntil])
+}
+
+model DataSourceRecord {
+  id                  String          @id @default(cuid())
+  workspaceId         String
+  searchId            String?
+  subjectType         DataSubjectType
+  sourceType          SourceType
+  provider            String
+  externalId          String?
+  sourceUrl           String?
+  actorId             String?
+  actorCreator        String?
+  permissionReview    Json?
+  datasetId           String?
+  termsVersion        String?
+  collectedAt         DateTime        @default(now())
+  permittedPurpose    String          @db.Text
+  retentionUntil      DateTime
+  rawPayloadEncrypted String?         @db.Text
+  payloadHash         String
+  createdAt           DateTime        @default(now())
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  search    Search?    @relation(fields: [searchId], references: [id], onDelete: SetNull)
+  evidence  Evidence[]
+
+  @@unique([searchId, provider, payloadHash])
+  @@index([searchId])
+  @@index([retentionUntil])
+}
+
+model Evidence {
+  id                 String          @id @default(cuid())
+  workspaceId        String
+  searchId           String
+  dataSourceRecordId String
+  companyId          String?
+  contactId          String?
+  consumerId         String?
+  subjectType        DataSubjectType
+  sourceType         SourceType
+  provider           String
+  sourceUrl          String?
+  field              String
+  valueHash          String?
+  excerpt            String?         @db.Text
+  confidence         Int?
+  observedAt         DateTime
+  collectedAt        DateTime        @default(now())
+  expiresAt          DateTime
+
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  search           Search            @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  dataSourceRecord DataSourceRecord  @relation(fields: [dataSourceRecordId], references: [id], onDelete: Cascade)
+  company          Company?          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact          Contact?          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  consumer         ConsumerProspect? @relation(fields: [consumerId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, subjectType])
+  @@index([searchId])
+  @@index([dataSourceRecordId])
+  @@index([contactId])
+  @@index([consumerId])
+  @@index([expiresAt])
+}
+
+model ConsentRecord {
+  id             String          @id @default(cuid())
+  workspaceId    String
+  contactId      String?
+  consumerId     String?
+  status         ConsentStatus
+  lawfulBasis    LawfulBasis
+  purpose        String          @db.Text
+  channel        ContactChannel?
+  source         String
+  proofEncrypted String?         @db.Text
+  capturedAt     DateTime
+  expiresAt      DateTime?
+  withdrawnAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact   Contact?          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  consumer  ConsumerProspect? @relation(fields: [consumerId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([contactId])
+  @@index([consumerId])
+  @@index([expiresAt])
+}
+
+model SuppressionEntry {
+  id          String          @id @default(cuid())
+  workspaceId String
+  type        SuppressionType
+  emailHash   String?
+  phoneHash   String?
+  externalId  String?
+  reason      String?
+  source      String
+  expiresAt   DateTime?
+  createdAt   DateTime        @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, emailHash])
+  @@index([workspaceId, phoneHash])
+  @@index([workspaceId, externalId])
+}
+
+model DataSubjectRequest {
+  id               String            @id @default(cuid())
+  workspaceId      String
+  type             DataRequestType
+  status           DataRequestStatus @default(RECEIVED)
+  identityHash     String
+  requestEncrypted String            @db.Text
+  resolution       String?           @db.Text
+  dueAt            DateTime
+  completedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([identityHash])
+}
+
+model AIResponse {
+  id             String   @id @default(cuid())
+  searchResultId String?
+  purpose        String
+  model          String
+  promptVersion  String
+  inputHash      String
+  output         Json
+  tokensInput    Int?
+  tokensOutput   Int?
+  latencyMs      Int?
+  createdAt      DateTime @default(now())
+
+  searchResult SearchResult? @relation(fields: [searchResultId], references: [id], onDelete: Cascade)
+
+  @@index([searchResultId, purpose])
+  @@index([inputHash])
+}
+
+model CompanyResearch {
+  id                  String   @id @default(cuid())
+  workspaceId         String
+  companyId           String   @unique
+  status              String   @default("READY")
+  summary             Json
+  executiveSummary    Json?
+  salesStrategy       Json?
+  buyingIntent        Json?
+  painPoints          Json?
+  technologyDetection Json?
+  outreach            Json?
+  industryInsights    Json?
+  competitorAnalysis  Json?
+  model               String
+  promptVersion       String
+  confidence          Int?
+  researchedAt        DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, researchedAt])
+}
+
+model WebsiteAnalysis {
+  id                    String   @id @default(cuid())
+  workspaceId           String
+  companyId             String   @unique
+  screenshotUrl         String?
+  overallScore          Int
+  userExperience        Int
+  userInterface         Int
+  branding              Int
+  performance           Int
+  accessibility         Int
+  seo                   Int
+  content               Int
+  responsiveness        Int
+  callsToAction         Int
+  trustSignals          Int
+  forms                 Int
+  security              Int
+  analyzedPages         String[] @default([])
+  issues                Json
+  recommendations       Json
+  businessOpportunities Json
+  missingFeatures       String[] @default([])
+  evidenceRefs          String[] @default([])
+  confidence            Int?
+  observedAt            DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, overallScore])
+  @@index([observedAt])
+}
+
+model BuyingSignal {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  companyId    String
+  fingerprint  String   @unique
+  type         String
+  title        String
+  detail       String   @db.Text
+  strength     String
+  confidence   Int
+  sourceUrl    String?
+  evidenceRefs String[] @default([])
+  observedAt   DateTime
+  createdAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, observedAt])
+  @@index([companyId, strength])
+}
+
+model CompanyTimelineEvent {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  companyId    String
+  fingerprint  String   @unique
+  type         String
+  title        String
+  detail       String?  @db.Text
+  confidence   Int?
+  sourceUrl    String?
+  evidenceRefs String[] @default([])
+  occurredAt   DateTime
+  createdAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, occurredAt])
+  @@index([companyId, occurredAt])
+}
+
+model SalesTask {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  companyId      String?
+  searchResultId String?
+  createdById    String?
+  assignedToId   String?
+  title          String
+  description    String?   @db.Text
+  status         String    @default("OPEN")
+  priority       String    @default("MEDIUM")
+  dueAt          DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company      Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  searchResult SearchResult? @relation(fields: [searchResultId], references: [id], onDelete: SetNull)
+  createdBy    User?         @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  assignedTo   User?         @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, dueAt])
+  @@index([companyId])
+  @@index([assignedToId, status])
+}
+
+model CompanyReport {
+  id          String    @id @default(cuid())
+  workspaceId String
+  companyId   String
+  kind        String
+  format      String
+  status      String    @default("READY")
+  content     Json?
+  storagePath String?
+  generatedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, generatedAt])
+  @@index([companyId, kind])
+}
+
+model ResearchCache {
+  id          String   @id @default(cuid())
+  workspaceId String
+  cacheKey    String   @unique
+  provider    String
+  actorId     String?
+  payload     Json
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, provider])
+  @@index([expiresAt])
+}
+
+model SavedFolder {
+  id          String   @id @default(cuid())
+  workspaceId String
+  parentId    String?
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent    SavedFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  SavedFolder[] @relation("FolderTree")
+  lists     SavedList[]
+
+  @@unique([workspaceId, parentId, name])
+  @@index([workspaceId])
+}
+
+model SavedList {
+  id          String   @id @default(cuid())
+  workspaceId String
+  folderId    String?
+  createdById String
+  name        String
+  description String?  @db.Text
+  isShared    Boolean  @default(false)
+  shareToken  String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folder    SavedFolder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  createdBy User            @relation("ListCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  items     SavedListItem[]
+
+  @@unique([workspaceId, folderId, name])
+  @@index([workspaceId, updatedAt])
+}
+
+model SavedListItem {
+  id         String   @id @default(cuid())
+  listId     String
+  resultId   String?
+  contactId  String?
+  consumerId String?
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  list     SavedList         @relation(fields: [listId], references: [id], onDelete: Cascade)
+  result   SearchResult?     @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  contact  Contact?          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  consumer ConsumerProspect? @relation(fields: [consumerId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, resultId])
+  @@index([listId, createdAt])
+}
+
+model Outreach {
+  id             String         @id @default(cuid())
+  searchResultId String
+  createdById    String
+  type           OutreachType
+  tone           String
+  subject        String?
+  body           String         @db.Text
+  status         OutreachStatus @default(DRAFT)
+  model          String
+  promptVersion  String
+  complianceNote String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  result    SearchResult @relation(fields: [searchResultId], references: [id], onDelete: Cascade)
+  createdBy User         @relation("OutreachCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([searchResultId, createdAt])
+}
+
+model Export {
+  id             String       @id @default(cuid())
+  workspaceId    String
+  createdById    String
+  searchId       String?
+  format         ExportFormat
+  status         ExportStatus @default(QUEUED)
+  filters        Json?
+  selectedIds    String[]     @default([])
+  recordCount    Int          @default(0)
+  storagePath    String?
+  signedUrl      String?
+  expiresAt      DateTime?
+  errorCode      String?
+  idempotencyKey String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("ExportCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  search    Search?   @relation(fields: [searchId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, createdById, idempotencyKey])
+  @@index([workspaceId, createdAt])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  workspaceId String
+  userId      String
+  type        NotificationType
+  title       String
+  message     String           @db.Text
+  actionUrl   String?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  actorId     String?
+  action      String
+  entityType  String
+  entityId    String?
+  ipHash      String?
+  userAgent   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  actor     User?      @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+model UsageLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String?
+  category    String
+  quantity    Int      @default(1)
+  referenceId String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, category, createdAt])
+}

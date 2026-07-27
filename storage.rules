@@ -1,0 +1,10 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Export objects are read and written only through authenticated server routes.
+    match /{object=**} {
+      allow read, write: if false;
+    }
+  }
+}

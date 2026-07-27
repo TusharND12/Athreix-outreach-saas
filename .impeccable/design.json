@@ -1,0 +1,350 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-20T11:48:43Z",
+  "title": "Design System: Athreix Prospect AI",
+  "extensions": {
+    "colorMeta": {
+      "signal-amber": {
+        "role": "primary",
+        "displayName": "Signal Amber",
+        "canonical": "oklch(0.842 0.165 91.3)",
+        "tonalRamp": [
+          "oklch(0.15 0.165 91.3)",
+          "oklch(0.25 0.165 91.3)",
+          "oklch(0.35 0.165 91.3)",
+          "oklch(0.45 0.165 91.3)",
+          "oklch(0.55 0.165 91.3)",
+          "oklch(0.65 0.165 91.3)",
+          "oklch(0.8 0.165 91.3)",
+          "oklch(0.95 0.165 91.3)"
+        ]
+      },
+      "working-white": {
+        "role": "neutral",
+        "displayName": "Working White",
+        "canonical": "oklch(1 0 0)",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.25 0 0)",
+          "oklch(0.35 0 0)",
+          "oklch(0.45 0 0)",
+          "oklch(0.55 0 0)",
+          "oklch(0.65 0 0)",
+          "oklch(0.8 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "decision-black": {
+        "role": "neutral",
+        "displayName": "Decision Black",
+        "canonical": "oklch(0.145 0.006 91.3)",
+        "tonalRamp": [
+          "oklch(0.15 0.006 91.3)",
+          "oklch(0.25 0.006 91.3)",
+          "oklch(0.35 0.006 91.3)",
+          "oklch(0.45 0.006 91.3)",
+          "oklch(0.55 0.006 91.3)",
+          "oklch(0.65 0.006 91.3)",
+          "oklch(0.8 0.006 91.3)",
+          "oklch(0.95 0.006 91.3)"
+        ]
+      },
+      "quiet-layer": {
+        "role": "neutral",
+        "displayName": "Quiet Layer",
+        "canonical": "oklch(0.965 0.003 91.3)",
+        "tonalRamp": [
+          "oklch(0.15 0.003 91.3)",
+          "oklch(0.25 0.003 91.3)",
+          "oklch(0.35 0.003 91.3)",
+          "oklch(0.45 0.003 91.3)",
+          "oklch(0.55 0.003 91.3)",
+          "oklch(0.65 0.003 91.3)",
+          "oklch(0.8 0.003 91.3)",
+          "oklch(0.95 0.003 91.3)"
+        ]
+      },
+      "quiet-ink": {
+        "role": "neutral",
+        "displayName": "Quiet Ink",
+        "canonical": "oklch(0.42 0.01 91.3)",
+        "tonalRamp": [
+          "oklch(0.15 0.01 91.3)",
+          "oklch(0.25 0.01 91.3)",
+          "oklch(0.35 0.01 91.3)",
+          "oklch(0.45 0.01 91.3)",
+          "oklch(0.55 0.01 91.3)",
+          "oklch(0.65 0.01 91.3)",
+          "oklch(0.8 0.01 91.3)",
+          "oklch(0.95 0.01 91.3)"
+        ]
+      },
+      "boundary": {
+        "role": "neutral",
+        "displayName": "Boundary",
+        "canonical": "oklch(0.9 0.004 91.3)",
+        "tonalRamp": [
+          "oklch(0.15 0.004 91.3)",
+          "oklch(0.25 0.004 91.3)",
+          "oklch(0.35 0.004 91.3)",
+          "oklch(0.45 0.004 91.3)",
+          "oklch(0.55 0.004 91.3)",
+          "oklch(0.65 0.004 91.3)",
+          "oklch(0.8 0.004 91.3)",
+          "oklch(0.95 0.004 91.3)"
+        ]
+      },
+      "signal-layer": {
+        "role": "secondary",
+        "displayName": "Signal Layer",
+        "canonical": "oklch(0.945 0.035 91.3)",
+        "tonalRamp": [
+          "oklch(0.15 0.035 91.3)",
+          "oklch(0.25 0.035 91.3)",
+          "oklch(0.35 0.035 91.3)",
+          "oklch(0.45 0.035 91.3)",
+          "oklch(0.55 0.035 91.3)",
+          "oklch(0.65 0.035 91.3)",
+          "oklch(0.8 0.035 91.3)",
+          "oklch(0.95 0.035 91.3)"
+        ]
+      },
+      "dark-canvas": {
+        "role": "neutral",
+        "displayName": "Dark Canvas",
+        "canonical": "oklch(0.13 0.004 91.3)",
+        "tonalRamp": [
+          "oklch(0.15 0.004 91.3)",
+          "oklch(0.25 0.004 91.3)",
+          "oklch(0.35 0.004 91.3)",
+          "oklch(0.45 0.004 91.3)",
+          "oklch(0.55 0.004 91.3)",
+          "oklch(0.65 0.004 91.3)",
+          "oklch(0.8 0.004 91.3)",
+          "oklch(0.95 0.004 91.3)"
+        ]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Verified Green",
+        "canonical": "oklch(0.52 0.13 145)",
+        "tonalRamp": [
+          "oklch(0.15 0.13 145)",
+          "oklch(0.25 0.13 145)",
+          "oklch(0.35 0.13 145)",
+          "oklch(0.45 0.13 145)",
+          "oklch(0.55 0.13 145)",
+          "oklch(0.65 0.13 145)",
+          "oklch(0.8 0.13 145)",
+          "oklch(0.95 0.13 145)"
+        ]
+      },
+      "destructive": {
+        "role": "secondary",
+        "displayName": "Destructive Red",
+        "canonical": "oklch(0.55 0.21 27)",
+        "tonalRamp": [
+          "oklch(0.15 0.21 27)",
+          "oklch(0.25 0.21 27)",
+          "oklch(0.35 0.21 27)",
+          "oklch(0.45 0.21 27)",
+          "oklch(0.55 0.21 27)",
+          "oklch(0.65 0.21 27)",
+          "oklch(0.8 0.21 27)",
+          "oklch(0.95 0.21 27)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Editorial Display",
+        "purpose": "Marketing hero and major brand statements only."
+      },
+      "headline": {
+        "displayName": "Section Headline",
+        "purpose": "Marketing sections and major empty states."
+      },
+      "title": {
+        "displayName": "Working Title",
+        "purpose": "Panels, drawers, row groups, and cards."
+      },
+      "body": {
+        "displayName": "Product Body",
+        "purpose": "Interface copy and readable supporting prose."
+      },
+      "label": {
+        "displayName": "Operational Label",
+        "purpose": "Fields, metadata, status, and column labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay-lift",
+        "value": "0 8px 24px oklch(0.145 0.006 91.3 / 0.14)",
+        "purpose": "Dialogs, command menus, dropdowns, and popovers only."
+      },
+      {
+        "name": "drawer-lift",
+        "value": "-8px 0 24px rgb(0 0 0 / 0.18)",
+        "purpose": "The right-hand prospect detail drawer only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-feedback",
+        "value": "200ms ease-out",
+        "purpose": "Hover, focus, active, and selected-state transitions."
+      },
+      {
+        "name": "responsive-expand",
+        "value": "200ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Accordion and progressive-disclosure expansion."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Signal Button",
+      "kind": "button",
+      "refersTo": "button-signal",
+      "description": "Rare public conversion or signal-led action.",
+      "html": "<button class=\"ds-button-signal\">Start searching <span aria-hidden=\"true\">→</span></button>",
+      "css": ".ds-button-signal { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: var(--radius); padding: 8px 16px; background: var(--primary); color: var(--primary-foreground); font: 600 14px/1 var(--font-geist-sans), sans-serif; transition: background-color 200ms ease-out, transform 200ms ease-out; } .ds-button-signal:hover { background: oklch(0.80 0.165 91.3); } .ds-button-signal:active { transform: translateY(1px); } .ds-button-signal:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }"
+    },
+    {
+      "name": "Product Primary Button",
+      "kind": "button",
+      "refersTo": "button-product",
+      "description": "The authenticated workspace's decisive next action.",
+      "html": "<button class=\"ds-button-product\">Generate prospects <span aria-hidden=\"true\">→</span></button>",
+      "css": ".ds-button-product { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; padding: 8px 16px; background: oklch(0.145 0.006 91.3); color: white; font: 500 14px/1 var(--font-geist-sans), sans-serif; transition: background-color 200ms ease-out, transform 200ms ease-out; } .ds-button-product:hover { background: oklch(0.27 0.006 91.3); } .ds-button-product:active { transform: translateY(1px); } .ds-button-product:focus-visible { outline: 3px solid oklch(0.56 0.1 80); outline-offset: 3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "description": "A contextual action that remains subordinate to the primary.",
+      "html": "<button class=\"ds-button-secondary\">Advanced filters</button>",
+      "css": ".ds-button-secondary { min-height: 44px; border: 1px solid oklch(0.9 0.004 91.3); border-radius: 10px; padding: 8px 16px; background: white; color: oklch(0.145 0.006 91.3); font: 500 14px/1 var(--font-geist-sans), sans-serif; transition: border-color 200ms ease-out, background-color 200ms ease-out; } .ds-button-secondary:hover { border-color: oklch(0.72 0.01 91.3); background: oklch(0.965 0.003 91.3); } .ds-button-secondary:focus-visible { outline: 3px solid oklch(0.56 0.1 80); outline-offset: 3px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "A compact, explicit field for structured research controls.",
+      "html": "<label class=\"ds-field-label\">Location<input class=\"ds-field\" placeholder=\"Country, state, or city\"></label>",
+      "css": ".ds-field-label { display: grid; gap: 6px; color: oklch(0.25 0.006 91.3); font: 500 12px/1.25 var(--font-geist-sans), sans-serif; } .ds-field { min-height: 44px; width: 100%; border: 1px solid oklch(0.9 0.004 91.3); border-radius: 10px; padding: 8px 12px; background: white; color: oklch(0.145 0.006 91.3); font: 400 14px/1.5 var(--font-geist-sans), sans-serif; transition: border-color 200ms ease-out, box-shadow 200ms ease-out; } .ds-field:hover { border-color: oklch(0.72 0.01 91.3); } .ds-field:focus-visible { border-color: oklch(0.145 0.006 91.3); outline: 0; box-shadow: 0 0 0 2px oklch(0.145 0.006 91.3 / 0.10); }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "status-chip",
+      "description": "A compact text-first operational state.",
+      "html": "<span class=\"ds-status\"><span class=\"ds-status-dot\"></span>Complete</span>",
+      "css": ".ds-status { min-height: 24px; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; padding: 2px 10px; background: oklch(0.94 0.035 145); color: oklch(0.35 0.11 145); font: 600 12px/1 var(--font-geist-sans), sans-serif; } .ds-status-dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }"
+    },
+    {
+      "name": "Working Surface",
+      "kind": "card",
+      "refersTo": "surface",
+      "description": "A flat, bordered product container with earned density.",
+      "html": "<section class=\"ds-surface\"><h3>Search scope</h3><p>Mode, maximum results, cost, and applied constraints remain visible.</p></section>",
+      "css": ".ds-surface { border: 1px solid oklch(0.9 0.004 91.3); border-radius: 14px; padding: 20px; background: white; color: oklch(0.145 0.006 91.3); font-family: var(--font-geist-sans), sans-serif; } .ds-surface h3 { margin: 0; font-size: 16px; line-height: 1.25; letter-spacing: -0.01em; } .ds-surface p { margin: 8px 0 0; max-width: 70ch; color: oklch(0.42 0.01 91.3); font-size: 14px; line-height: 1.5; }"
+    },
+    {
+      "name": "Active Navigation Item",
+      "kind": "nav",
+      "description": "The selected product route with a scarce amber locator.",
+      "html": "<a class=\"ds-nav-active\" href=\"#\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"/></svg><span>Dashboard</span><i></i></a>",
+      "css": ".ds-nav-active { min-height: 44px; display: flex; align-items: center; gap: 12px; border-radius: 10px; padding: 8px 12px; background: oklch(0.145 0.006 91.3); color: white; text-decoration: none; font: 600 14px/1 var(--font-geist-sans), sans-serif; } .ds-nav-active svg { width: 16px; height: 16px; } .ds-nav-active i { width: 6px; height: 6px; margin-left: auto; border-radius: 9999px; background: oklch(0.842 0.165 91.3); } .ds-nav-active:focus-visible { outline: 3px solid oklch(0.56 0.1 80); outline-offset: 3px; }"
+    },
+    {
+      "name": "Responsible-use Notice",
+      "kind": "custom",
+      "description": "A signature policy boundary placed inside the working flow.",
+      "html": "<aside class=\"ds-notice\"><strong>Draft only — sending is your responsibility</strong><p>Confirm permission, honor opt-outs, and review every individual message.</p></aside>",
+      "css": ".ds-notice { border: 1px solid oklch(0.9 0.004 91.3); border-radius: 14px; padding: 16px; background: oklch(0.965 0.003 91.3); color: oklch(0.145 0.006 91.3); font-family: var(--font-geist-sans), sans-serif; } .ds-notice strong { font-size: 14px; line-height: 1.25; } .ds-notice p { margin: 4px 0 0; color: oklch(0.35 0.01 91.3); font-size: 12px; line-height: 1.65; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Intelligence Desk",
+    "overview": "Athreix feels like a focused growth operator's working desk: crisp white surfaces, disciplined black typography, compact evidence, and one rare amber signal. The product stays calm under information density and becomes emphatic only at a genuine decision point.\n\nThe public experience carries editorial scale; the authenticated workspace becomes denser and more operational. Both use the same Geist voice, neutral architecture, compact curvature, and exact signal color. Motion is responsive state feedback, never page-load theatre. Evidence, freshness, permission, and progress sit beside conclusions instead of hiding behind them.\n\nThe system explicitly rejects generic glassy AI SaaS, Apollo-style CRM clutter, Clay-like spreadsheet complexity without progressive disclosure, decorative metric-card dashboards, and consumer-data growth hacks that obscure provenance or permission.",
+    "keyCharacteristics": [
+      "Monochrome working surfaces with one scarce amber signal.",
+      "Search-first composition with progressive controls and visible cost.",
+      "Dense, tabular product views that collapse into readable mobile records.",
+      "Evidence, permission, freshness, and confidence next to AI output.",
+      "Flat at rest; structurally elevated only during interaction."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Rarity Rule",
+        "body": "Signal Amber occupies no more than ten percent of a product screen. Its scarcity is the point.",
+        "section": "colors"
+      },
+      {
+        "name": "The Neutral Canvas Rule",
+        "body": "Cream, beige, sand, parchment, and paper-tinted application canvases are prohibited. Warmth belongs to the signal, not the background.",
+        "section": "colors"
+      },
+      {
+        "name": "The Semantic State Rule",
+        "body": "Green and red never decorate. They communicate confirmed success or a concrete problem and always appear with text or icon evidence.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Working Voice Rule",
+        "body": "Product UI uses one sans family. Geist Mono appears only where fixed-width rhythm materially improves scanning.",
+        "section": "typography"
+      },
+      {
+        "name": "The Compact Product Rule",
+        "body": "Display sizes stop at the app shell. Product hierarchy comes from alignment and weight, not oversized dashboard headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The Earned Elevation Rule",
+        "body": "A surface may cast a shadow only after it has moved above another surface in the interaction model.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Hairline Structure Rule",
+        "body": "Resting cards and tables use a one-pixel Boundary outline, never a diffuse ambient shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Primary Action Rule",
+        "body": "A working surface has one visually dominant next action. Secondary controls recede until context makes them relevant.",
+        "section": "components"
+      },
+      {
+        "name": "The Evidence Beside Output Rule",
+        "body": "AI scores, drafts, and recommendations never appear without confidence, provenance, permission, or rationale within the same workflow.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do keep search intent, audience mode, result scope, credit cost, and next action visible.",
+      "Do use Working White, Decision Black, Quiet Layer, and Boundary for almost all product structure.",
+      "Do reserve Signal Amber for at most ten percent of a product screen.",
+      "Do pair AI conclusions with evidence, freshness, confidence, provenance, and permission state.",
+      "Do keep 44-pixel default targets, full keyboard access, visible focus, reduced-motion behavior, and mobile reflow.",
+      "Do expose loading, empty, error, disabled, permission-denied, retention-expired, and suppression states honestly."
+    ],
+    "donts": [
+      "Don't build generic glassy AI SaaS interfaces with decorative blur, glowing gradients, or floating translucent cards.",
+      "Don't reproduce Apollo-style CRM clutter that exposes every control at once.",
+      "Don't reproduce Clay-like spreadsheet complexity without progressive disclosure or excellent defaults.",
+      "Don't assemble decorative dashboards from repeated metric cards, empty charts, or ornamental motion.",
+      "Don't use consumer-data growth hacks that obscure provenance, permission, sensitive attributes, retention, suppression, or deletion rights.",
+      "Don't use cream, beige, sand, parchment, or paper-tinted application backgrounds.",
+      "Don't use Signal Amber, Verified Green, or Destructive Red as decoration.",
+      "Don't simulate a successful mutation, export, share, retry, or save when no authoritative service completed it."
+    ]
+  }
+}

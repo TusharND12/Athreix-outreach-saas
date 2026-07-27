@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Athreix uses the Firebase Admin SDK from authenticated server routes.
+    // Keeping client access closed prevents users from bypassing workspace RBAC.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
