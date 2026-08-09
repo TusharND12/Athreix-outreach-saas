@@ -35,10 +35,10 @@ test.describe("public experience", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Start a live search" }).first(),
+      page.getByRole("link", { name: "Start a prospect search" }).first(),
     ).toBeVisible();
     await expect(
-      page.getByText("Live B2B intelligence", { exact: true }).first(),
+      page.getByText("Live B2B data · no mock leads", { exact: true }).first(),
     ).toBeVisible();
     await expect(
       page.getByText(/does not automate unsolicited mass messaging/i),

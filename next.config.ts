@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
-  serverExternalPackages: ["bullmq", "ioredis", "exceljs"],
+  serverExternalPackages: ["exceljs"],
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

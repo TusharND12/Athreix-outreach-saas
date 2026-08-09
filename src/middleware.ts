@@ -27,7 +27,8 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith("/api/auth/") && !customAuthMutation;
     const signedInternal =
       request.nextUrl.pathname.startsWith("/api/internal/");
-    if (!authJsManaged && !signedInternal) {
+    const signedWebhook = request.nextUrl.pathname === "/api/billing/webhook";
+    if (!authJsManaged && !signedInternal && !signedWebhook) {
       const violation = csrfViolation({
         method: request.method,
         origin: request.headers.get("origin"),
@@ -64,13 +65,21 @@ export async function middleware(request: NextRequest) {
   const token =
     process.env.NODE_ENV === "production" && !secretConfigured
       ? null
-      : await getToken({ req: request, secret });
+      : await getToken({
+          req: request,
+          secret,
+          secureCookie: request.nextUrl.protocol === "https:",
+        });
   const demoEnabled =
     process.env.DEMO_MODE === "true" ||
     (process.env.NODE_ENV !== "production" && !process.env.FIREBASE_PROJECT_ID);
-  if (token || demoEnabled) return NextResponse.next();
+  if ((token?.sub && !token.authInvalid) || demoEnabled)
+    return NextResponse.next();
 
   const loginUrl = new URL("/login", request.url);
+  if (token?.authInvalidReason === "approval") {
+    loginUrl.searchParams.set("pending", "1");
+  }
   loginUrl.searchParams.set(
     "callbackUrl",
     `${request.nextUrl.pathname}${request.nextUrl.search}`,
@@ -79,5 +88,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  runtime: "nodejs",
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };

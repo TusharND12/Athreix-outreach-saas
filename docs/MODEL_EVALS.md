@@ -4,7 +4,7 @@ Athreix treats AI output as an assistive layer over deterministic eligibility, n
 
 ## Production gate
 
-Before changing the default analysis or batch model, evaluate at least 100 representative, rights-cleared records split across B2B/B2C, industries, geographies, sparse/rich profiles, verified/unverified contacts, and intentionally ineligible cases.
+Before changing the default analysis or batch model, evaluate at least 100 representative, rights-cleared B2B records split across industries, geographies, sparse/rich profiles, verified/unverified contacts, and intentionally ineligible cases. A future B2C launch requires its own rights-cleared evaluation set and approval; it is not covered by the B2B launch result.
 
 Measure:
 

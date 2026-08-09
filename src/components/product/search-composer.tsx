@@ -51,6 +51,7 @@ type SearchForm = {
   runLabel: string;
   industry: string;
   location: string;
+  jurisdiction: string;
   excludedLocation: string;
   companySize: string;
   jobTitle: string;
@@ -67,10 +68,14 @@ type SearchForm = {
   score: string;
 };
 
+const defaultB2BJurisdiction =
+  process.env.NEXT_PUBLIC_B2B_JURISDICTION?.trim() || "India";
+
 const initialForm: SearchForm = {
   runLabel: "",
   industry: "",
   location: "",
+  jurisdiction: defaultB2BJurisdiction,
   excludedLocation: "",
   companySize: "",
   jobTitle: "",
@@ -237,6 +242,51 @@ export function SearchComposer({
           setAvailableCredits(null);
           setCreditState("error");
         }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    requestOrFallback<{
+      data?: {
+        defaultFilters?: {
+          score?: number;
+          limit?: number;
+          location?: string;
+        } | null;
+      };
+    }>("/api/settings", { data: {} })
+      .then(({ data }) => {
+        if (!active || !data.data?.defaultFilters) return;
+        const defaults = data.data.defaultFilters;
+        setForm((current) => ({
+          ...current,
+          location:
+            manuallyEditedFieldsRef.current.has("location") ||
+            !defaults.location
+              ? current.location
+              : defaults.location,
+          score:
+            manuallyEditedFieldsRef.current.has("score") ||
+            defaults.score === undefined
+              ? current.score
+              : String(defaults.score),
+        }));
+        if (
+          !limitManuallyEditedRef.current &&
+          defaults.limit !== undefined &&
+          Number.isInteger(defaults.limit) &&
+          defaults.limit >= 1 &&
+          defaults.limit <= 1_000
+        ) {
+          setLimitInput(String(defaults.limit));
+        }
+      })
+      .catch(() => {
+        // Defaults are optional; search remains usable with safe local values.
       });
     return () => {
       active = false;
@@ -466,6 +516,12 @@ export function SearchComposer({
       );
       return;
     }
+    if (!form.jurisdiction.trim()) {
+      setError(
+        "Enter the country whose reviewed data-use rules apply to this search.",
+      );
+      return;
+    }
     if (
       [revenueMin, revenueMax].some(
         (value) =>
@@ -528,6 +584,7 @@ export function SearchComposer({
           name: form.runLabel.trim() || undefined,
           mode: "B2B",
           query,
+          jurisdiction: form.jurisdiction.trim(),
           filters,
           targetCount: requestedLimit,
         }),
@@ -720,6 +777,24 @@ export function SearchComposer({
                   onChange={(event) => update("jobTitle", event.target.value)}
                   placeholder="Founder, CEO, VP Sales"
                   hint="Separate multiple titles with commas."
+                />
+              </SearchTemplateRow>
+
+              <SearchTemplateRow
+                icon={<Landmark className="size-4" />}
+                label="Data jurisdiction"
+                value={form.jurisdiction || "Required"}
+              >
+                <Field
+                  id="template-jurisdiction"
+                  label="Data jurisdiction country"
+                  value={form.jurisdiction}
+                  onChange={(event) =>
+                    update("jurisdiction", event.target.value)
+                  }
+                  placeholder="India"
+                  hint="Must match a country approved in the provider review. The current Athreix actor is approved for India."
+                  required
                 />
               </SearchTemplateRow>
 

@@ -26,5 +26,6 @@ declare module "next-auth/jwt" {
     isPlatformAdmin?: boolean;
     sessionVersion?: number;
     authInvalid?: boolean;
+    authInvalidReason?: "approval" | "suspended" | "invalid";
   }
 }

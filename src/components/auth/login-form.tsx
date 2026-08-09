@@ -25,11 +25,13 @@ export function LoginForm({
   demoCredentials,
   accountCreated = false,
   emailVerified = false,
+  pendingApproval = false,
 }: {
   callbackUrl?: string;
   demoCredentials?: { email: string; password: string };
   accountCreated?: boolean;
   emailVerified?: boolean;
+  pendingApproval?: boolean;
 }) {
   const router = useRouter();
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -82,10 +84,19 @@ export function LoginForm({
         </Alert>
       ) : null}
       {emailVerified ? (
-        <Alert variant="success" className="mb-5">
+        <Alert variant="info" className="mb-5">
           <AlertDescription>
-            Email verified. Your starter credits are active; sign in to
-            continue.
+            Email verified. Your account will be available after platform
+            approval; try signing in once your review is complete.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {pendingApproval ? (
+        <Alert variant="info" className="mb-5">
+          <AlertDescription>
+            Your email is verified and the account is waiting for platform
+            approval. Access will remain closed until an administrator approves
+            it.
           </AlertDescription>
         </Alert>
       ) : null}

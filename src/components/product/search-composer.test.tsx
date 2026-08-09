@@ -52,6 +52,7 @@ function routedFetch(searchId: string, balance = 500) {
     const url = String(input);
     if (url === "/api/usage")
       return jsonResponse({ data: { balance, reserved: 0 } });
+    if (url === "/api/settings") return jsonResponse({ data: {} });
     if (url === "/api/ai/search-understanding") {
       const request = JSON.parse(String(_init?.body)) as {
         query: string;
@@ -323,6 +324,7 @@ describe("SearchComposer filter contracts", () => {
     const init = searchCall?.[1] as RequestInit;
     const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(payload.mode).toBe("B2B");
+    expect(payload.jurisdiction).toBe("India");
     expect(payload).not.toHaveProperty("lawfulBasis");
     expect(payload).not.toHaveProperty("audienceSource");
     expect(push).toHaveBeenCalledWith(expect.stringContaining("mode=B2B"));

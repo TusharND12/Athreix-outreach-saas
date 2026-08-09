@@ -1,0 +1,194 @@
+runConfig:
+  minInstances: 1
+  maxInstances: 10
+  concurrency: 80
+  cpu: 2
+  memoryMiB: 2048
+
+env:
+  - variable: FIREBASE_PROJECT_ID
+    value: athreix-outreach-saas
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: FIREBASE_STORAGE_BUCKET
+    value: athreix-outreach-saas.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyDApvZqpT77gVots6VSZzLWd-OCdV47IgM
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: athreix-outreach-saas.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: athreix-outreach-saas
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: athreix-outreach-saas.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "37525009183"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:37525009183:web:160876142d66e99e93f62a
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://athreix-outreach--athreix-outreach-saas.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_B2B_JURISDICTION
+    value: India
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: AUTH_URL
+    value: https://athreix-outreach--athreix-outreach-saas.us-central1.hosted.app
+    availability:
+      - RUNTIME
+  - variable: AUTH_TRUST_HOST
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: ADMIN_EMAILS
+    value: umerkhan@athreix.com
+    availability:
+      - RUNTIME
+  - variable: DEMO_MODE
+    value: "false"
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_DEMO_MODE
+    value: "false"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: LIVE_DATA_ONLY
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_QUEUE
+    value: athreix-search
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_LOCATION
+    value: us-central1
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL
+    value: athreix-task-invoker@athreix-outreach-saas.iam.gserviceaccount.com
+    availability:
+      - RUNTIME
+  - variable: SEARCH_TASK_TARGET_URL
+    value: https://athreix-search-worker-37525009183.us-central1.run.app/tasks/search
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_MAX_ATTEMPTS
+    value: "3"
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_DISPATCH_DEADLINE_SECONDS
+    value: "900"
+    availability:
+      - RUNTIME
+  - variable: SEARCH_TASK_SIGNING_SECRET
+    secret: ATHREIX_SEARCH_TASK_SIGNING_SECRET
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_LIVE_DATA_ONLY
+    value: "true"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: AUTH_SECRET
+    secret: ATHREIX_AUTH_SECRET
+  - variable: FIELD_ENCRYPTION_KEY
+    secret: ATHREIX_FIELD_ENCRYPTION_KEY
+  - variable: CRON_SECRET
+    secret: ATHREIX_CRON_SECRET
+  - variable: APIFY_API_TOKEN
+    secret: APIFY_API_TOKEN
+    availability:
+      - RUNTIME
+  - variable: APIFY_B2B_ACTOR_ID
+    value: code_crafter/leads-finder
+    availability:
+      - RUNTIME
+  - variable: APIFY_ALLOWED_ACTORS
+    secret: ATHREIX_APIFY_ALLOWED_ACTORS
+    availability:
+      - RUNTIME
+  - variable: APIFY_TERMS_VERSION
+    value: "2026-08-01"
+    availability:
+      - RUNTIME
+  - variable: APIFY_ACTOR_REVIEWS_JSON
+    secret: ATHREIX_APIFY_ACTOR_REVIEWS_JSON
+    availability:
+      - RUNTIME
+  - variable: APIFY_RESEARCH_ACTORS_JSON
+    secret: APIFY_RESEARCH_ACTORS_JSON
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_API_KEY
+    secret: OPENROUTER_API_KEY
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_MODEL
+    secret: ATHREIX_OPENROUTER_MODEL
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_SCORING_MODEL
+    secret: ATHREIX_OPENROUTER_SCORING_MODEL
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_OUTREACH_MODEL
+    secret: ATHREIX_OPENROUTER_OUTREACH_MODEL
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_RESEARCH_MODEL
+    secret: ATHREIX_OPENROUTER_RESEARCH_MODEL
+    availability:
+      - RUNTIME
+  - variable: BILLING_PROVIDER
+    value: stripe
+    availability:
+      - RUNTIME
+  - variable: BILLING_TAX_MODE
+    secret: ATHREIX_BILLING_TAX_MODE
+    availability:
+      - RUNTIME
+  - variable: STRIPE_SECRET_KEY
+    secret: STRIPE_SECRET_KEY
+    availability:
+      - RUNTIME
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: STRIPE_WEBHOOK_SECRET
+    availability:
+      - RUNTIME
+  - variable: STRIPE_PRICE_STARTER
+    secret: STRIPE_PRICE_STARTER
+    availability:
+      - RUNTIME
+  - variable: STRIPE_PRICE_GROWTH
+    secret: STRIPE_PRICE_GROWTH
+    availability:
+      - RUNTIME
+  - variable: STRIPE_PRICE_SCALE
+    secret: STRIPE_PRICE_SCALE
+    availability:
+      - RUNTIME

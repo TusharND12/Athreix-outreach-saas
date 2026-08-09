@@ -8,6 +8,7 @@ import { issueEmailVerification } from "@/server/auth-service";
 import { env } from "@/lib/server/env";
 import { AppError } from "@/lib/server/errors";
 import nodemailer from "nodemailer";
+import { sendFirebaseVerificationEmail } from "@/lib/server/firebase-auth";
 
 export async function POST(request: Request) {
   return apiRoute(async () => {
@@ -25,27 +26,17 @@ export async function POST(request: Request) {
         409,
       );
     }
-    if (
-      env.NODE_ENV === "production" &&
-      (!env.EMAIL_SERVER || !env.EMAIL_FROM)
-    ) {
-      throw new AppError(
-        "EMAIL_NOT_CONFIGURED",
-        "Account verification is temporarily unavailable.",
-        503,
-      );
-    }
     const user = await registerUser(input);
     let localVerificationPath: string | undefined;
     let deliveryStatus: "sent" | "pending_retry" | "local" | "demo" = user.demo
       ? "demo"
       : "pending_retry";
     if (!user.demo && user.email) {
-      const token = await issueEmailVerification(user.id, user.email);
-      const verifyUrl = new URL("/verify-email", env.NEXT_PUBLIC_APP_URL);
-      verifyUrl.searchParams.set("token", token);
-      verifyUrl.searchParams.set("email", user.email);
       if (env.EMAIL_SERVER && env.EMAIL_FROM) {
+        const token = await issueEmailVerification(user.id, user.email);
+        const verifyUrl = new URL("/verify-email", env.NEXT_PUBLIC_APP_URL);
+        verifyUrl.searchParams.set("token", token);
+        verifyUrl.searchParams.set("email", user.email);
         try {
           const transport = nodemailer.createTransport(env.EMAIL_SERVER);
           await transport.sendMail({
@@ -62,7 +53,25 @@ export async function POST(request: Request) {
             error instanceof Error ? error.message : "unknown mail error",
           );
         }
-      } else if (env.NODE_ENV !== "production") {
+      } else if (env.NODE_ENV === "production") {
+        try {
+          deliveryStatus = (await sendFirebaseVerificationEmail(
+            user.email,
+            input.password,
+          ))
+            ? "sent"
+            : "pending_retry";
+        } catch (error) {
+          console.warn(
+            "Firebase verification email delivery failed",
+            error instanceof Error ? error.message : "unknown mail error",
+          );
+        }
+      } else {
+        const token = await issueEmailVerification(user.id, user.email);
+        const verifyUrl = new URL("/verify-email", env.NEXT_PUBLIC_APP_URL);
+        verifyUrl.searchParams.set("token", token);
+        verifyUrl.searchParams.set("email", user.email);
         localVerificationPath = `${verifyUrl.pathname}${verifyUrl.search}`;
         deliveryStatus = "local";
       }
@@ -78,7 +87,7 @@ export async function POST(request: Request) {
         message:
           deliveryStatus === "pending_retry"
             ? "Account created, but the verification email could not be delivered. Use resend verification to try again."
-            : "Account created. Verify your email before signing in.",
+            : "Account created. Verify your email, then wait for platform approval before signing in.",
       },
       {
         status: deliveryStatus === "pending_retry" ? 202 : 201,

@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const alt =
-  "Athreix Prospect AI — responsible B2B and B2C prospect intelligence";
+  "Athreix Prospect AI — responsible B2B prospect intelligence";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -86,8 +86,8 @@ export default function OpenGraphImage() {
             marginTop: 26,
           }}
         >
-          Search, rank, explain, draft, organize, and export—across B2B and
-          permissioned B2C workflows.
+          Search, rank, explain, draft, organize, and export evidence-backed B2B
+          opportunities.
         </div>
       </div>
 

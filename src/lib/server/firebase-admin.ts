@@ -12,8 +12,17 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 
-const defaultProjectId = "athreix-prospect-ai";
-const defaultStorageBucket = "athreix-prospect-ai.firebasestorage.app";
+const defaultProjectId = "athreix-outreach-saas";
+const defaultStorageBucket = "athreix-outreach-saas.firebasestorage.app";
+
+function configuredCredentialFileIsMissing() {
+  const configuredPath = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
+  if (!configuredPath) return false;
+  const absolutePath = path.isAbsolute(configuredPath)
+    ? configuredPath
+    : path.resolve(process.cwd(), configuredPath);
+  return !existsSync(absolutePath);
+}
 
 function parseServiceAccount(raw: string): ServiceAccount {
   const parsed = JSON.parse(raw) as {
@@ -79,9 +88,16 @@ export const firebaseAuth = getAuth(firebaseAdminApp);
 export const firebaseDb = getFirestore(firebaseAdminApp);
 export const firebaseStorage = getStorage(firebaseAdminApp);
 
-firebaseDb.settings({ ignoreUndefinedProperties: true });
+const globalForFirebase = globalThis as typeof globalThis & {
+  athreixFirestoreSettingsApplied?: boolean;
+};
+if (!globalForFirebase.athreixFirestoreSettingsApplied) {
+  firebaseDb.settings({ ignoreUndefinedProperties: true });
+  globalForFirebase.athreixFirestoreSettingsApplied = true;
+}
 
 export async function firebaseIsReachable() {
+  if (configuredCredentialFileIsMissing()) return false;
   try {
     await firebaseDb.doc("_system/connectivity").get();
     return true;
@@ -91,6 +107,7 @@ export async function firebaseIsReachable() {
 }
 
 export async function firebaseAuthIsReachable() {
+  if (configuredCredentialFileIsMissing()) return false;
   try {
     await firebaseAuth.listUsers(1);
     return true;
@@ -100,6 +117,7 @@ export async function firebaseAuthIsReachable() {
 }
 
 export async function firebaseStorageIsReachable() {
+  if (configuredCredentialFileIsMissing()) return false;
   try {
     const [exists] = await firebaseStorage.bucket().exists();
     return exists;

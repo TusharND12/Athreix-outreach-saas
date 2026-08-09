@@ -38,6 +38,15 @@ export function assertConsumerOutreachRole(
   }
 }
 
+export function appendWorkspaceSignature(
+  body: string,
+  signature?: string | null,
+) {
+  const normalized = signature?.trim();
+  if (!normalized || body.trimEnd().endsWith(normalized)) return body;
+  return `${body.trimEnd()}\n\n${normalized}`;
+}
+
 export async function createOutreachDraft(
   context: RequestContext,
   input: OutreachInput,
@@ -213,16 +222,28 @@ export async function createOutreachDraft(
     suggestedOffer:
       result.suggestedOffer ?? "A relevant, evidence-based introduction.",
   };
-  const draft = await generateOutreachDraft({
-    item: normalized,
-    type: input.type,
-    tone: input.tone,
-    offer: input.offer,
-    context: input.context,
-    analysis,
-    workspaceId: context.workspaceId,
-    userId: context.userId,
-  });
+  const [draft, workspace] = await Promise.all([
+    generateOutreachDraft({
+      item: normalized,
+      type: input.type,
+      tone: input.tone,
+      offer: input.offer,
+      context: input.context,
+      analysis,
+      workspaceId: context.workspaceId,
+      userId: context.userId,
+    }),
+    db.workspace.findUnique({
+      where: { id: context.workspaceId },
+      select: { emailSignature: true },
+    }),
+  ]);
+  const body = appendWorkspaceSignature(
+    draft.body,
+    input.type === "COLD_EMAIL" || input.type === "FOLLOW_UP"
+      ? workspace?.emailSignature
+      : null,
+  );
   const saved = await db.outreach.create({
     data: {
       searchResultId: result.id,
@@ -230,7 +251,7 @@ export async function createOutreachDraft(
       type: input.type,
       tone: input.tone,
       subject: draft.subject,
-      body: draft.body,
+      body,
       status: "DRAFT",
       model: draft.model,
       promptVersion: draft.promptVersion,

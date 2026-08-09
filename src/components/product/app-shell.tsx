@@ -17,6 +17,7 @@ import {
   Menu,
   Search,
   Settings,
+  ShieldCheck,
   Sparkles,
   UserRound,
   X,
@@ -101,12 +102,20 @@ const accountNavigation = [
   },
 ] satisfies NavigationItem[];
 
+const adminNavigation = {
+  href: "/admin",
+  label: "Admin operations",
+  caption: "Customers and systems",
+  code: "10",
+  icon: ShieldCheck,
+} satisfies NavigationItem;
+
 const commandItems = [
   {
     href: "/search",
     label: "Start a new prospect search",
     group: "Actions",
-    keywords: "find leads b2b b2c",
+    keywords: "find leads b2b companies",
   },
   {
     href: "/history",
@@ -157,6 +166,7 @@ const pageNames: Record<string, string> = {
   settings: "Settings",
   billing: "Billing",
   profile: "Profile",
+  admin: "Admin operations",
 };
 
 function AthreixMark() {
@@ -254,7 +264,13 @@ function NavLink({
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({
+  onNavigate,
+  isPlatformAdmin,
+}: {
+  onNavigate?: () => void;
+  isPlatformAdmin: boolean;
+}) {
   return (
     <div className="product-sidebar relative flex h-full flex-col overflow-hidden border border-slate-200/85 dark:border-slate-800">
       <div
@@ -311,14 +327,25 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           {accountNavigation.map((item) => (
             <NavLink key={item.href} {...item} onNavigate={onNavigate} />
           ))}
+          {isPlatformAdmin ? (
+            <NavLink {...adminNavigation} onNavigate={onNavigate} />
+          ) : null}
         </div>
       </nav>
     </div>
   );
 }
 
-function DesktopNavigationTabs() {
-  const items = [...mainNavigation, ...accountNavigation];
+function DesktopNavigationTabs({
+  isPlatformAdmin,
+}: {
+  isPlatformAdmin: boolean;
+}) {
+  const items = [
+    ...mainNavigation,
+    ...accountNavigation,
+    ...(isPlatformAdmin ? [adminNavigation] : []),
+  ];
 
   return (
     <nav
@@ -326,7 +353,12 @@ function DesktopNavigationTabs() {
       aria-label="Desktop navigation"
       className="desktop-navigation-tabs min-w-0 flex-1 overflow-hidden"
     >
-      <ol className="grid w-full grid-cols-9">
+      <ol
+        className={cx(
+          "grid w-full",
+          isPlatformAdmin ? "grid-cols-10" : "grid-cols-9",
+        )}
+      >
         {items.map((item, index) => (
           <li
             key={item.href}
@@ -426,7 +458,13 @@ function CommandMenu({
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  isPlatformAdmin = false,
+}: {
+  children: ReactNode;
+  isPlatformAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopNavigationOpen, setDesktopNavigationOpen] = useState(false);
@@ -510,7 +548,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </IconButton>
         </div>
-        {desktopNavigationOpen ? <DesktopNavigationTabs /> : null}
+        {desktopNavigationOpen ? (
+          <DesktopNavigationTabs isPlatformAdmin={isPlatformAdmin} />
+        ) : null}
       </aside>
       <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
         <Dialog.Portal>
@@ -522,7 +562,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Dialog.Description className="sr-only">
               Navigate between Athreix product areas.
             </Dialog.Description>
-            <SidebarContent onNavigate={() => setMobileOpen(false)} />
+            <SidebarContent
+              onNavigate={() => setMobileOpen(false)}
+              isPlatformAdmin={isPlatformAdmin}
+            />
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

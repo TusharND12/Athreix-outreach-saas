@@ -15,6 +15,7 @@ export default async function LoginPage({
     callbackUrl?: string;
     created?: string;
     verified?: string;
+    pending?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -30,6 +31,7 @@ export default async function LoginPage({
         callbackUrl={params.callbackUrl}
         accountCreated={params.created === "1"}
         emailVerified={params.verified === "1"}
+        pendingApproval={params.pending === "1"}
         demoCredentials={
           showDemo
             ? { email: "demo@athreix.ai", password: "AthreixDemo2026!" }

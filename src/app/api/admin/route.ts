@@ -9,6 +9,7 @@ export async function GET() {
     if (context.demo) {
       return apiSuccess({
         users: 1,
+        pendingAccounts: 0,
         workspaces: 1,
         searches: demoState.searches.length,
         failedJobs: 0,
@@ -23,6 +24,7 @@ export async function GET() {
     }
     const [
       users,
+      pendingAccounts,
       workspaces,
       searches,
       failedJobs,
@@ -32,6 +34,7 @@ export async function GET() {
       subscriptions,
     ] = await Promise.all([
       db.user.count(),
+      db.user.count({ where: { approvalStatus: "PENDING" } }),
       db.workspace.count(),
       db.search.count(),
       db.searchJob.count({ where: { status: "FAILED" } }),
@@ -49,6 +52,7 @@ export async function GET() {
     ]);
     return apiSuccess({
       users,
+      pendingAccounts,
       workspaces,
       searches,
       failedJobs,

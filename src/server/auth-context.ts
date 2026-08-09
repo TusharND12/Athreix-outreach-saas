@@ -22,6 +22,18 @@ const roleWeight: Record<AppRole, number> = {
 };
 
 export async function getRequestContext(): Promise<RequestContext | null> {
+  // Explicit demo mode is an isolated fixture runtime even when .env.local also
+  // contains a live Firebase project. Never let a demo request touch that project.
+  if (env.demoMode) {
+    return {
+      userId: "demo-user",
+      workspaceId: "demo-workspace",
+      role: "OWNER",
+      isPlatformAdmin: true,
+      demo: true,
+      mockData: env.mockDataEnabled,
+    };
+  }
   const session = await auth();
   if (session?.user?.id) {
     if (env.databaseEnabled) {
@@ -35,13 +47,30 @@ export async function getRequestContext(): Promise<RequestContext | null> {
         },
         orderBy: { createdAt: "asc" },
         include: {
-          user: { select: { isPlatformAdmin: true, suspendedAt: true } },
+          user: {
+            select: {
+              isPlatformAdmin: true,
+              suspendedAt: true,
+              approvalStatus: true,
+            },
+          },
         },
       });
       if (member?.user.suspendedAt) {
         throw new AppError(
           "ACCOUNT_SUSPENDED",
           "This account has been suspended.",
+          403,
+        );
+      }
+      if (
+        member?.user.approvalStatus !== undefined &&
+        member.user.approvalStatus !== "APPROVED" &&
+        !member.user.isPlatformAdmin
+      ) {
+        throw new AppError(
+          "ACCOUNT_PENDING_APPROVAL",
+          "This account is waiting for platform approval.",
           403,
         );
       }
@@ -56,17 +85,6 @@ export async function getRequestContext(): Promise<RequestContext | null> {
         };
       }
     }
-  }
-
-  if (env.demoMode) {
-    return {
-      userId: "demo-user",
-      workspaceId: "demo-workspace",
-      role: "OWNER",
-      isPlatformAdmin: true,
-      demo: true,
-      mockData: env.mockDataEnabled,
-    };
   }
   if (!env.databaseEnabled) {
     throw new AppError(

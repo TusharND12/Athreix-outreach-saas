@@ -55,6 +55,7 @@ export function SignupForm({
   const [resending, setResending] = React.useState(false);
   const [resendMessage, setResendMessage] = React.useState<string | null>(null);
   const [resendError, setResendError] = React.useState<string | null>(null);
+  const verificationPassword = React.useRef("");
   const {
     register,
     handleSubmit,
@@ -111,6 +112,7 @@ export function SignupForm({
           payload?.data?.verification?.deliveryStatus ??
           (demoMode ? "demo" : "sent"),
       });
+      verificationPassword.current = values.password;
     } catch {
       setFormError(
         "Account creation is temporarily unavailable. Please try again in a moment.",
@@ -127,7 +129,10 @@ export function SignupForm({
       const response = await fetch("/api/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: created.email }),
+        body: JSON.stringify({
+          email: created.email,
+          password: verificationPassword.current,
+        }),
       });
       const payload = (await response.json().catch(() => null)) as {
         data?: {
@@ -204,8 +209,8 @@ export function SignupForm({
               {demoMode
                 ? "Demo signups are not persisted. Continue with the preconfigured demo account to explore the workspace."
                 : deliveryPending
-                  ? `We could not deliver the verification email to ${created.email}. Your account and starter credits remain inactive until you verify it.`
-                  : `We sent a verification link to ${created.email}. Your starter credits activate after verification.`}
+                  ? `We could not deliver the verification email to ${created.email}. Your account remains inactive until email verification and platform approval are complete.`
+                  : `We sent a verification link to ${created.email}. After verification, a platform administrator will review the account before workspace access is enabled.`}
             </AlertDescription>
           </div>
         </Alert>

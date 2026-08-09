@@ -108,15 +108,14 @@ const sections: LegalSection[] = [
     ),
   },
   {
-    title: "B2C has stricter controls",
+    title: "Consumer targeting is not launched",
     body: (
       <p>
-        B2C mode is intended for legitimate consumer-audience workflows where
-        the customer can document purpose and permission. Use consent-aware
-        sources, minimize attributes, keep retention short, restrict exports,
-        and review suppression status before activation. Do not use inferred
-        sensitive traits or scrape consumer profiles simply because they are
-        viewable.
+        The initial service is limited to B2B professional research. Do not use
+        it to target consumer audiences or infer sensitive traits. Any future
+        consumer workflow would require separately approved sources, purpose,
+        permission, minimization, retention, suppression, export, and legal
+        controls before it is offered to customers.
       </p>
     ),
   },
@@ -163,7 +162,7 @@ export default function ResponsibleUsePage() {
   return (
     <LegalPage
       title="Responsible Use"
-      summary="Clear limits for prospect research, consumer-audience work, and AI-assisted outreach. Trust is a workflow requirement, not a footer promise."
+      summary="Clear limits for B2B prospect research and AI-assisted outreach drafts. Trust is a workflow requirement, not a footer promise."
       sections={sections}
     />
   );

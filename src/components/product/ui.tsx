@@ -230,11 +230,13 @@ export function Field({
 export function TextAreaField({
   label,
   hint,
+  error,
   className,
   ...props
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   label: string;
   hint?: string;
+  error?: string;
 }) {
   const id = props.id ?? props.name ?? label.toLowerCase().replaceAll(" ", "-");
   return (
@@ -247,16 +249,25 @@ export function TextAreaField({
       </label>
       <textarea
         id={id}
-        aria-describedby={hint ? `${id}-help` : undefined}
-        className="w-full resize-y rounded-xl border border-slate-300 bg-white/80 px-3.5 py-3 text-sm leading-6 text-slate-950 shadow-[0_1px_0_oklch(1_0_0/0.8)_inset] outline-none transition-all placeholder:text-slate-400 hover:border-slate-400 hover:bg-white focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-950/80 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-blue-400"
+        aria-describedby={hint || error ? `${id}-help` : undefined}
+        aria-invalid={error ? true : undefined}
+        className={cx(
+          "w-full resize-y rounded-xl border bg-white/80 px-3.5 py-3 text-sm leading-6 text-slate-950 shadow-[0_1px_0_oklch(1_0_0/0.8)_inset] outline-none transition-all placeholder:text-slate-400 hover:border-slate-400 hover:bg-white focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:bg-slate-950/80 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-blue-400",
+          error ? "border-red-600" : "border-slate-300 dark:border-slate-700",
+        )}
         {...props}
       />
-      {hint ? (
+      {hint || error ? (
         <span
           id={`${id}-help`}
-          className="mt-1.5 block text-xs text-zinc-600 dark:text-zinc-400"
+          className={cx(
+            "mt-1.5 block text-xs",
+            error
+              ? "text-red-700 dark:text-red-400"
+              : "text-zinc-600 dark:text-zinc-400",
+          )}
         >
-          {hint}
+          {error ?? hint}
         </span>
       ) : null}
     </div>

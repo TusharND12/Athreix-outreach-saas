@@ -6,9 +6,11 @@ product
 
 ## Users
 
-Athreix Prospect AI serves founder-led sales teams, growth operators, agencies, SDRs, account executives, and RevOps leaders who need to turn an ideal-customer description into a qualified, actionable prospect list without assembling several disconnected tools. The default workflow is optimized for a hands-on operator at a small or mid-sized company, while retaining the density and controls needed by larger teams.
+Athreix Prospect AI serves founders, growth operators, agencies, SDRs, account executives, and RevOps leaders who need to turn an ideal-customer description into a qualified, actionable prospect list without assembling several disconnected tools. The initial self-service launch is optimized for one accountable operator in an owner-managed workspace.
 
-The platform supports two explicit research modes. B2B mode discovers organizations and relevant professional decision-makers. B2C mode helps legitimate businesses build consumer audiences from lawful, purpose-appropriate data sources under stricter consent, sensitive-data, retention, suppression, and export controls. Internal administrators monitor users, search jobs, credits, failures, compliance events, revenue, and system health.
+The customer-facing launch supports B2B research: organizations and relevant professional decision-makers. A privacy-gated B2C service boundary remains in the backend for a later, separately reviewed release and is not advertised or selectable in the launch UI. Internal administrators monitor users, search jobs, credits, failures, compliance events, revenue, and system health.
+
+Workspace membership roles are retained for authorization and future collaboration. Self-service invitations, workspace switching, and seat billing are outside the initial single-owner launch and must not be advertised as current plan features.
 
 ## Product Purpose
 
@@ -36,7 +38,7 @@ The product borrows Perplexity's search-first clarity, Linear's speed and state 
 2. **Evidence earns trust.** Scores, enrichment, verification, and recommendations must expose provenance, confidence, freshness, and rationale.
 3. **Progressive power.** Start with excellent defaults and natural language; reveal professional controls when they improve a real decision.
 4. **One flow, visible state.** Background work, credits, errors, and completion states stay understandable from launch through export.
-5. **Privacy is a product behavior.** Data minimization, lawful-use gates, suppression, retention, and auditability are part of the experience, especially for B2C.
+5. **Privacy is a product behavior.** Data minimization, lawful-use gates, suppression, retention, and auditability are part of the experience.
 
 ## Accessibility & Inclusion
 

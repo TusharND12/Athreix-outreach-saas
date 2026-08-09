@@ -1,7 +1,29 @@
 import { randomUUID } from "node:crypto";
-import { firebaseAdminApp, firebaseDb } from "../src/lib/server/firebase-admin";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { loadEnvFile } from "node:process";
 
 async function main() {
+  if (existsSync(".env.local")) loadEnvFile(".env.local");
+
+  const hasInlineCredentials = Boolean(
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 ||
+    (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY),
+  );
+  const credentialPath = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
+  if (
+    !hasInlineCredentials &&
+    credentialPath &&
+    !existsSync(path.resolve(process.cwd(), credentialPath))
+  ) {
+    throw new Error(
+      `Firebase Admin credential not found at ${credentialPath}. Add the organization service-account JSON there, then rerun pnpm firebase:smoke.`,
+    );
+  }
+
+  const { firebaseAdminApp, firebaseDb } =
+    await import("../src/lib/server/firebase-admin");
   const id = randomUUID();
   const reference = firebaseDb.collection("_system_smoke").doc(id);
 

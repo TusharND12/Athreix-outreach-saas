@@ -11,6 +11,10 @@
     {
       "path": "/api/internal/retention",
       "schedule": "15 2 * * *"
+    },
+    {
+      "path": "/api/internal/monitoring",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

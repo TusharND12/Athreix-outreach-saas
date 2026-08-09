@@ -7,8 +7,12 @@ import { readJson } from "@/lib/server/errors";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 import { requestMetadata } from "@/lib/server/request";
 import { issueEmailVerification } from "@/server/auth-service";
+import { sendFirebaseVerificationEmail } from "@/lib/server/firebase-auth";
 
-const schema = z.object({ email: z.string().trim().email().max(254) });
+const schema = z.object({
+  email: z.string().trim().email().max(254),
+  password: z.string().min(8).max(128).optional(),
+});
 
 export async function POST(request: Request) {
   return apiRoute(async () => {
@@ -18,7 +22,7 @@ export async function POST(request: Request) {
       5,
       15 * 60,
     );
-    const { email: rawEmail } = schema.parse(await readJson(request));
+    const { email: rawEmail, password } = schema.parse(await readJson(request));
     const email = rawEmail.toLowerCase();
     let localVerificationPath: string | undefined;
     // Default to an accepted/sent-shaped response to avoid account enumeration.
@@ -30,11 +34,11 @@ export async function POST(request: Request) {
         select: { id: true, emailVerified: true },
       });
       if (user && !user.emailVerified) {
-        const token = await issueEmailVerification(user.id, email);
-        const verifyUrl = new URL("/verify-email", env.NEXT_PUBLIC_APP_URL);
-        verifyUrl.searchParams.set("token", token);
-        verifyUrl.searchParams.set("email", email);
         if (env.EMAIL_SERVER && env.EMAIL_FROM) {
+          const token = await issueEmailVerification(user.id, email);
+          const verifyUrl = new URL("/verify-email", env.NEXT_PUBLIC_APP_URL);
+          verifyUrl.searchParams.set("token", token);
+          verifyUrl.searchParams.set("email", email);
           try {
             await nodemailer.createTransport(env.EMAIL_SERVER).sendMail({
               from: env.EMAIL_FROM,
@@ -50,7 +54,20 @@ export async function POST(request: Request) {
               error instanceof Error ? error.message : "unknown mail error",
             );
           }
-        } else if (env.NODE_ENV !== "production") {
+        } else if (env.NODE_ENV === "production") {
+          try {
+            deliveryStatus =
+              password && (await sendFirebaseVerificationEmail(email, password))
+                ? "sent"
+                : "pending_retry";
+          } catch {
+            deliveryStatus = "pending_retry";
+          }
+        } else {
+          const token = await issueEmailVerification(user.id, email);
+          const verifyUrl = new URL("/verify-email", env.NEXT_PUBLIC_APP_URL);
+          verifyUrl.searchParams.set("token", token);
+          verifyUrl.searchParams.set("email", email);
           localVerificationPath = `${verifyUrl.pathname}${verifyUrl.search}`;
           deliveryStatus = "local";
         }

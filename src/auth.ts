@@ -5,8 +5,14 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 import { db } from "@/lib/server/db";
 import { env } from "@/lib/server/env";
-import { verifyFirebasePassword } from "@/lib/server/firebase-auth";
-import { ensureWorkspaceForUser } from "@/server/auth-service";
+import {
+  resendFirebaseVerificationEmail,
+  verifyFirebasePassword,
+} from "@/lib/server/firebase-auth";
+import {
+  ensureWorkspaceForUser,
+  synchronizeFirebaseEmailVerification,
+} from "@/server/auth-service";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 import { hashIdentifier } from "@/lib/server/crypto";
 
@@ -57,10 +63,27 @@ const providers = [
         parsed.data.password,
       );
       if (!identity) return null;
-      const user = await db.user.findUnique({
+      let user = await db.user.findUnique({
         where: { id: identity.localId },
       });
-      if (!user || user.suspendedAt || !user.emailVerified) return null;
+      if (user && !user.emailVerified) {
+        if (await synchronizeFirebaseEmailVerification(user.id)) {
+          user = await db.user.findUnique({ where: { id: identity.localId } });
+        } else {
+          await resendFirebaseVerificationEmail(identity.idToken).catch(
+            () => false,
+          );
+        }
+      }
+      if (
+        !user ||
+        user.suspendedAt ||
+        !user.emailVerified ||
+        (!user.isPlatformAdmin &&
+          user.approvalStatus !== undefined &&
+          user.approvalStatus !== "APPROVED")
+      )
+        return null;
       return {
         id: user.id,
         email: user.email,
@@ -93,10 +116,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (env.NODE_ENV === "production" && !env.authHardened) {
         token.authInvalid = true;
+        token.authInvalidReason = "invalid";
         delete token.sub;
         return token;
       }
       if (user?.id) token.sub = user.id;
+      if (token.sub === "demo-user" && env.demoMode) {
+        token.workspaceId = "demo-workspace";
+        token.role = "OWNER";
+        token.isPlatformAdmin = true;
+        token.authInvalid = false;
+        delete token.authInvalidReason;
+        return token;
+      }
       if (token.sub && env.databaseEnabled) {
         const userState = await db.user.findUnique({
           where: { id: token.sub },
@@ -104,15 +136,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             sessionVersion: true,
             suspendedAt: true,
             isPlatformAdmin: true,
+            approvalStatus: true,
           },
         });
         if (
           !userState ||
           userState.suspendedAt ||
+          (!userState.isPlatformAdmin &&
+            userState.approvalStatus !== undefined &&
+            userState.approvalStatus !== "APPROVED") ||
           (!user && token.sessionVersion === undefined) ||
           (!user && token.sessionVersion !== userState.sessionVersion)
         ) {
           token.authInvalid = true;
+          token.authInvalidReason =
+            userState &&
+            !userState.isPlatformAdmin &&
+            userState.approvalStatus !== undefined &&
+            userState.approvalStatus !== "APPROVED"
+              ? "approval"
+              : userState?.suspendedAt
+                ? "suspended"
+                : "invalid";
           delete token.sub;
           delete token.workspaceId;
           delete token.role;
@@ -121,6 +166,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
         token.sessionVersion = userState.sessionVersion;
         token.authInvalid = false;
+        delete token.authInvalidReason;
         const membership = await db.workspaceMember.findFirst({
           orderBy: { createdAt: "asc" },
           where: { userId: token.sub, isActive: true },
@@ -131,10 +177,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.role = membership.role;
           token.isPlatformAdmin = membership.user.isPlatformAdmin;
         }
-      } else if (token.sub === "demo-user") {
-        token.workspaceId = "demo-workspace";
-        token.role = "OWNER";
-        token.isPlatformAdmin = true;
       }
       return token;
     },
@@ -160,7 +202,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             where: { id: user.id },
             data: {
               emailVerified: new Date(),
-              ...(shouldBootstrapAdmin ? { isPlatformAdmin: true } : {}),
+              approvalStatus: shouldBootstrapAdmin ? "APPROVED" : "PENDING",
+              ...(shouldBootstrapAdmin
+                ? {
+                    isPlatformAdmin: true,
+                    approvedAt: new Date(),
+                    approvedById: user.id,
+                  }
+                : {}),
             },
           });
         }

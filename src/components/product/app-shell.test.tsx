@@ -61,7 +61,7 @@ describe("AppShell simplified controls", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("omits the removed admin, status, theme, notification, and usage-card UI", async () => {
+  it("omits privileged admin controls and removed status, theme, notification, and usage-card UI", async () => {
     const user = userEvent.setup();
     render(
       <AppShell>
@@ -87,5 +87,29 @@ describe("AppShell simplified controls", () => {
     await user.click(screen.getByRole("button", { name: "Search workspace" }));
     expect(await screen.findByRole("dialog")).toBeVisible();
     expect(screen.queryByText("Open admin operations")).not.toBeInTheDocument();
+  });
+
+  it("shows the admin control center only to platform administrators", async () => {
+    const user = userEvent.setup();
+    render(
+      <AppShell isPlatformAdmin>
+        <h1>Admin workspace content</h1>
+      </AppShell>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Expand navigation" }));
+
+    const desktopNavigation = screen.getByRole("navigation", {
+      name: "Desktop navigation",
+    });
+    expect(within(desktopNavigation).getAllByRole("link")).toHaveLength(10);
+    expect(
+      within(desktopNavigation).getByRole("link", {
+        name: "Admin operations: Customers and systems",
+      }),
+    ).toHaveAttribute("href", "/admin");
+    expect(within(desktopNavigation).getByRole("list")).toHaveClass(
+      "grid-cols-10",
+    );
   });
 });

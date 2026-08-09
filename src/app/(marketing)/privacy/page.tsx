@@ -48,10 +48,6 @@ const sections: LegalSection[] = [
           metadata;
         </li>
         <li>
-          permission-appropriate consumer-audience data when B2C controls and an
-          authorized purpose apply;
-        </li>
-        <li>
           usage, credit, device, security, audit, error, and support
           information; and
         </li>
@@ -107,8 +103,9 @@ const sections: LegalSection[] = [
         <p>
           We intend to keep personal data only as long as needed for the
           documented purpose, account obligations, security, disputes, and
-          applicable law. B2C data should use shorter, explicit retention
-          windows and restricted exports.
+          applicable law. The initial service does not offer consumer-audience
+          collection; any later release would require a separately approved,
+          shorter retention schedule and restricted exports.
         </p>
         <p>
           Planned safeguards include role-based access, encryption in transit

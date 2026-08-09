@@ -10,6 +10,8 @@ type PasswordSignInResponse = {
   expiresIn: string;
 };
 
+type FirebaseEmailAction = "VERIFY_EMAIL" | "PASSWORD_RESET";
+
 function authenticationUnavailable() {
   return new AppError(
     "FIREBASE_AUTH_NOT_CONFIGURED",
@@ -105,6 +107,52 @@ export async function verifyFirebasePassword(
     return null;
   }
   return null;
+}
+
+async function sendFirebaseEmailAction(
+  action: FirebaseEmailAction,
+  payload: { idToken: string } | { email: string },
+) {
+  const apiKey = env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  if (!apiKey) throw authenticationUnavailable();
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestType: action, ...payload }),
+      cache: "no-store",
+    },
+  );
+  return response.ok;
+}
+
+export async function sendFirebaseVerificationEmail(
+  email: string,
+  password: string,
+) {
+  const identity = await verifyFirebasePassword(email, password);
+  if (!identity) return false;
+  return sendFirebaseEmailAction("VERIFY_EMAIL", {
+    idToken: identity.idToken,
+  });
+}
+
+export async function resendFirebaseVerificationEmail(idToken: string) {
+  return sendFirebaseEmailAction("VERIFY_EMAIL", { idToken });
+}
+
+export async function sendFirebasePasswordResetEmail(email: string) {
+  return sendFirebaseEmailAction("PASSWORD_RESET", { email });
+}
+
+export async function firebaseEmailIsVerified(uid: string) {
+  try {
+    return (await firebaseAuth.getUser(uid)).emailVerified;
+  } catch (error) {
+    if (isConfigurationMissing(error)) throw authenticationUnavailable();
+    throw error;
+  }
 }
 
 export async function markFirebaseEmailVerified(uid: string) {

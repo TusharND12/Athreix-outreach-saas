@@ -1,6 +1,6 @@
-import { Queue } from "bullmq";
-import IORedis from "ioredis";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/server/env";
+import { firebaseAdminApp } from "@/lib/server/firebase-admin";
 
 export type SearchQueuePayload = { searchId: string; jobId: string };
 export type QueueReconciliation =
@@ -8,78 +8,109 @@ export type QueueReconciliation =
 
 export class QueueEnqueueUncertainError extends Error {
   constructor() {
-    super("Queue enqueue timed out with an uncertain outcome");
+    super("Cloud Tasks enqueue timed out with an uncertain outcome");
     this.name = "QueueEnqueueUncertainError";
   }
 }
 
-let connection: IORedis | null = null;
-let producer: IORedis | null = null;
-let queue: Queue<SearchQueuePayload> | null = null;
-const workerHeartbeatKey = "athreix:worker:search:heartbeat";
-const workerHeartbeatTtlSeconds = 30;
-
-export function queueConnection() {
-  if (!env.REDIS_URL) return null;
-  connection ??= new IORedis(env.REDIS_URL, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    lazyConnect: false,
-  });
-  return connection;
+function queuePath() {
+  if (!env.FIREBASE_PROJECT_ID) return null;
+  return `projects/${env.FIREBASE_PROJECT_ID}/locations/${env.CLOUD_TASKS_LOCATION}/queues/${env.CLOUD_TASKS_QUEUE}`;
 }
 
-function producerConnection() {
-  if (!env.REDIS_URL) return null;
-  producer ??= new IORedis(env.REDIS_URL, {
-    maxRetriesPerRequest: 1,
-    connectTimeout: 2_000,
-    enableOfflineQueue: false,
-    enableReadyCheck: true,
-    lazyConnect: true,
-  });
-  return producer;
+function taskId(jobId: string) {
+  return `search-${createHash("sha256").update(jobId).digest("hex")}`;
 }
 
-export function searchQueue() {
-  const redis = producerConnection();
-  if (!redis) return null;
-  queue ??= new Queue<SearchQueuePayload>("athreix-prospect-search", {
-    connection: redis,
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: { type: "exponential", delay: 5_000 },
-      removeOnComplete: 250,
-      removeOnFail: 500,
+function taskName(jobId: string) {
+  const queue = queuePath();
+  return queue ? `${queue}/tasks/${taskId(jobId)}` : null;
+}
+
+async function authorizationHeader() {
+  const credential = firebaseAdminApp.options.credential;
+  if (!credential) throw new Error("Firebase Admin credential is unavailable");
+  const token = await credential.getAccessToken();
+  if (!token.access_token)
+    throw new Error("Google access token is unavailable");
+  return `Bearer ${token.access_token}`;
+}
+
+async function cloudTasksRequest(
+  resource: string,
+  init: RequestInit = {},
+  timeoutMs = 4_000,
+) {
+  const authorization = await authorizationHeader();
+  return fetch(`https://cloudtasks.googleapis.com/v2/${resource}`, {
+    ...init,
+    headers: {
+      authorization,
+      ...(init.body ? { "content-type": "application/json" } : {}),
+      ...init.headers,
     },
+    signal: AbortSignal.timeout(timeoutMs),
   });
-  return queue;
+}
+
+export function serializeSearchTask(payload: SearchQueuePayload) {
+  return JSON.stringify(payload);
+}
+
+export function signSearchTaskBody(body: string) {
+  if (!env.SEARCH_TASK_SIGNING_SECRET) return null;
+  return createHmac("sha256", env.SEARCH_TASK_SIGNING_SECRET)
+    .update(body)
+    .digest("hex");
+}
+
+export function verifySearchTaskSignature(body: string, signature: string) {
+  const expected = signSearchTaskBody(body);
+  if (!expected || !/^[a-f0-9]{64}$/i.test(signature)) return false;
+  const left = Buffer.from(signature.toLowerCase(), "hex");
+  const right = Buffer.from(expected, "hex");
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 export async function enqueueSearch(payload: SearchQueuePayload) {
-  const target = searchQueue();
-  if (!target) return false;
-  const redis = producerConnection();
-  if (redis?.status === "wait") await redis.connect();
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await Promise.race([
-      target.add("process-search", payload, { jobId: payload.jobId }),
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new QueueEnqueueUncertainError()),
-          4_000,
-        );
-      }),
-    ]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
+  if (!env.cloudTasksReady) return false;
+  const parent = queuePath();
+  const name = taskName(payload.jobId);
+  const body = serializeSearchTask(payload);
+  const signature = signSearchTaskBody(body);
+  if (!parent || !name || !signature || !env.SEARCH_TASK_TARGET_URL) {
+    return false;
   }
-  return true;
-}
-
-export function queueStateIsClaimed(state: string) {
-  return ["active", "completed", "failed"].includes(state);
+  try {
+    const response = await cloudTasksRequest(`${parent}/tasks`, {
+      method: "POST",
+      body: JSON.stringify({
+        task: {
+          name,
+          dispatchDeadline: `${env.CLOUD_TASKS_DISPATCH_DEADLINE_SECONDS}s`,
+          httpRequest: {
+            httpMethod: "POST",
+            url: env.SEARCH_TASK_TARGET_URL,
+            headers: {
+              "content-type": "application/json",
+              "x-athreix-task-signature": signature,
+            },
+            body: Buffer.from(body).toString("base64"),
+            oidcToken: {
+              serviceAccountEmail: env.CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL,
+              audience: new URL(env.SEARCH_TASK_TARGET_URL).origin,
+            },
+          },
+        },
+      }),
+    });
+    if (response.ok || response.status === 409) return true;
+    if ([400, 401, 403, 404, 412].includes(response.status)) return false;
+    throw new QueueEnqueueUncertainError();
+  } catch (error) {
+    if (error instanceof QueueEnqueueUncertainError) throw error;
+    throw new QueueEnqueueUncertainError();
+  }
 }
 
 export function queueReconciliationIsAccepted(state: QueueReconciliation) {
@@ -90,102 +121,55 @@ export function shouldRunSearchInline(queued: boolean, nodeEnv: string) {
   return !queued && nodeEnv !== "production";
 }
 
-async function within<T>(promise: Promise<T>, milliseconds: number) {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new Error("Queue reconciliation timed out")),
-          milliseconds,
-        );
-      }),
-    ]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-  }
-}
-
-/**
- * Reconcile an ambiguous producer timeout before database state or credit
- * reservations are changed. A job that may have been claimed is deliberately
- * treated as accepted; only a confirmed unclaimed job is removed.
- */
 export async function removeUnclaimedSearchJob(
   jobId: string,
 ): Promise<QueueReconciliation> {
-  const target = searchQueue();
-  if (!target) return "ABSENT";
+  if (!env.cloudTasksReady) return "ABSENT";
+  const name = taskName(jobId);
+  if (!name) return "ABSENT";
   try {
-    const job = await within(target.getJob(jobId), 2_000);
-    if (!job) return "ABSENT";
-    const state = await within(job.getState(), 2_000);
-    if (queueStateIsClaimed(state)) return "CLAIMED";
-    if (
-      !["waiting", "delayed", "prioritized", "waiting-children"].includes(state)
-    ) {
-      return "UNCERTAIN";
-    }
-    try {
-      await within(job.remove(), 2_000);
-      return "REMOVED";
-    } catch {
-      // Removal loses the race when a worker claims the job. Re-read if
-      // possible, but never assume absence when Redis state is uncertain.
-      const current = await within(target.getJob(jobId), 2_000);
-      if (!current) return "CLAIMED";
-      const currentState = await within(current.getState(), 2_000);
-      return queueStateIsClaimed(currentState) ? "CLAIMED" : "UNCERTAIN";
-    }
+    const existing = await cloudTasksRequest(name);
+    if (existing.status === 404) return "ABSENT";
+    if (!existing.ok) return "UNCERTAIN";
+    const removed = await cloudTasksRequest(name, { method: "DELETE" });
+    if (removed.ok) return "REMOVED";
+    return removed.status === 404 ? "ABSENT" : "UNCERTAIN";
   } catch {
     return "UNCERTAIN";
   }
 }
 
+export async function cancelQueuedSearchJob(jobId: string) {
+  if (!env.cloudTasksReady) return false;
+  const name = taskName(jobId);
+  if (!name) return false;
+  try {
+    const response = await cloudTasksRequest(name, { method: "DELETE" });
+    // A missing task may already be executing. The caller must not delete the
+    // database job until it can prove that Cloud Tasks cancelled delivery.
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function queueIsReachable() {
-  const redis = producerConnection();
-  if (!redis) return false;
+  if (!env.cloudTasksReady) return false;
+  const name = queuePath();
+  if (!name) return false;
   try {
-    return await Promise.race([
-      redis.ping().then((value) => value === "PONG"),
-      new Promise<boolean>((resolve) =>
-        setTimeout(() => resolve(false), 1_500),
-      ),
-    ]);
-  } catch {
-    return false;
-  }
-}
-
-export async function recordWorkerHeartbeat(client?: IORedis | null) {
-  const redis = client ?? queueConnection();
-  if (!redis) return false;
-  try {
-    await redis.set(
-      workerHeartbeatKey,
-      new Date().toISOString(),
-      "EX",
-      workerHeartbeatTtlSeconds,
+    const response = await cloudTasksRequest(name, {}, 5_000);
+    if (!response.ok) {
+      console.error("Cloud Tasks readiness probe failed", response.status);
+      return false;
+    }
+    const queue = (await response.json()) as { state?: unknown };
+    return queue.state === "RUNNING";
+  } catch (error) {
+    console.error(
+      "Cloud Tasks readiness probe could not complete",
+      error instanceof Error ? error.name : "UnknownError",
     );
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function workerIsLive() {
-  const redis = producerConnection();
-  if (!redis) return false;
-  try {
-    if (redis.status === "wait") await redis.connect();
-    return await Promise.race([
-      redis.get(workerHeartbeatKey).then((value) => Boolean(value)),
-      new Promise<boolean>((resolve) =>
-        setTimeout(() => resolve(false), 1_500),
-      ),
-    ]);
-  } catch {
     return false;
   }
 }

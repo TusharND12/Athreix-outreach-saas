@@ -93,7 +93,10 @@ describe("authentication recovery and acceptance", () => {
       "/api/auth/resend-verification",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ email: "asha@example.com" }),
+        body: JSON.stringify({
+          email: "asha@example.com",
+          password: "SecurePassword123",
+        }),
       }),
     );
   });

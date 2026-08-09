@@ -59,7 +59,7 @@ Prefer Apify-maintained or contractually reviewed Actors with limited permission
 
 ## Launch actions outside code
 
-- Execute DPAs and subprocessor terms with Apify, OpenRouter, database, Redis, email, analytics, and storage vendors as applicable.
+- Execute DPAs and subprocessor terms with Apify, OpenRouter, Google Cloud/Firebase, Stripe, email, analytics, and other storage vendors as applicable.
 - Publish counsel-approved privacy notice, terms, responsible-use policy, retention schedule, and data-subject request process.
 - Complete jurisdiction-specific assessments for India's DPDP Act/Rules, GDPR/ePrivacy/PECR, CCPA/CPRA, CAN-SPAM, TCPA, and other applicable marketing/privacy laws.
 - Establish incident response, breach notification, access reviews, deletion verification, and quarterly Actor/source audits.

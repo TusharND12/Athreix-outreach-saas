@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AppError } from "@/lib/server/errors";
 import {
+  appendWorkspaceSignature,
   assertConsumerOutreachRole,
   canAccessConsumerOutreach,
 } from "@/server/outreach-service";
@@ -29,5 +30,23 @@ describe("consumer outreach access", () => {
 
   it("does not raise the consumer-only gate for professional outreach", () => {
     expect(() => assertConsumerOutreachRole("MEMBER", false)).not.toThrow();
+  });
+});
+
+describe("workspace outreach signature", () => {
+  it("appends a configured signature exactly once", () => {
+    expect(appendWorkspaceSignature("Hello there", "— Uma\nAthreix")).toBe(
+      "Hello there\n\n— Uma\nAthreix",
+    );
+    expect(
+      appendWorkspaceSignature(
+        "Hello there\n\n— Uma\nAthreix",
+        "— Uma\nAthreix",
+      ),
+    ).toBe("Hello there\n\n— Uma\nAthreix");
+  });
+
+  it("leaves the body unchanged when no signature is configured", () => {
+    expect(appendWorkspaceSignature("Hello there", " ")).toBe("Hello there");
   });
 });

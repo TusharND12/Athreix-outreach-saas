@@ -10,6 +10,7 @@ import {
   Mail,
   Save,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import {
   Button,
@@ -46,6 +47,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [deletionConfirmation, setDeletionConfirmation] = useState("");
+  const [deletionRequesting, setDeletionRequesting] = useState(false);
+  const [revokingSessions, setRevokingSessions] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -124,6 +128,60 @@ export default function ProfilePage() {
           ? resetError.message
           : "Password reset could not be requested.",
       );
+    }
+  };
+
+  const revokeAllSessions = async () => {
+    setRevokingSessions(true);
+    setError("");
+    try {
+      await requestOrFallback(
+        "/api/profile/sessions/revoke",
+        { data: { revoked: true } },
+        { method: "POST" },
+      );
+      await signOut({ callbackUrl: "/login?revoked=1" });
+    } catch (revokeError) {
+      setError(
+        revokeError instanceof Error
+          ? revokeError.message
+          : "Other sessions could not be revoked.",
+      );
+      setRevokingSessions(false);
+    }
+  };
+
+  const requestAccountDeletion = async () => {
+    if (!profile.email || deletionConfirmation !== profile.email) return;
+    setDeletionRequesting(true);
+    setError("");
+    setNotice("");
+    try {
+      await requestOrFallback(
+        "/api/privacy/requests",
+        { data: { status: "RECEIVED" } },
+        {
+          method: "POST",
+          body: JSON.stringify({
+            type: "DELETION",
+            identity: profile.email,
+            details:
+              "Delete my Athreix account and owner-managed workspace data. Cancelled billing records may be retained only where legally required.",
+          }),
+        },
+      );
+      setDeletionConfirmation("");
+      setNotice(
+        "Deletion request received. Access remains available while identity, billing, exports, and provider cleanup are verified.",
+      );
+    } catch (deletionError) {
+      setError(
+        deletionError instanceof Error
+          ? deletionError.message
+          : "The deletion request could not be submitted.",
+      );
+    } finally {
+      setDeletionRequesting(false);
     }
   };
 
@@ -259,18 +317,50 @@ export default function ProfilePage() {
                     <StatusBadge tone="success">Active</StatusBadge>
                   </div>
                   <p className="mt-1 text-xs text-zinc-500">
-                    Athreix does not display or revoke other sessions until a
-                    server-side session inventory is available.
+                    Revoke every application session if a device or sign-in may
+                    be compromised.
                   </p>
                 </div>
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => void signOut({ callbackUrl: "/login" })}
+                  loading={revokingSessions}
+                  onClick={() => void revokeAllSessions()}
                 >
-                  Sign out
+                  Sign out everywhere
                 </Button>
               </div>
+            </div>
+          </Surface>
+
+          <Surface className="border-red-200 p-5 sm:p-7 dark:border-red-900">
+            <SectionHeading
+              title="Delete account and workspace data"
+              description="Submit a verified deletion request covering account data, prospect records, exports, and retained provider artifacts. Active subscriptions must be resolved before final deletion."
+            />
+            <div className="mt-5 max-w-xl">
+              <Field
+                label="Confirm your account email"
+                type="email"
+                value={deletionConfirmation}
+                onChange={(event) =>
+                  setDeletionConfirmation(event.target.value.trim())
+                }
+                placeholder={profile.email}
+                hint="This creates an auditable request; it does not silently remove billing records that must be retained by law."
+              />
+              <Button
+                className="mt-4"
+                variant="danger"
+                loading={deletionRequesting}
+                disabled={
+                  !profile.email || deletionConfirmation !== profile.email
+                }
+                onClick={() => void requestAccountDeletion()}
+              >
+                <Trash2 className="size-4" />
+                Request account deletion
+              </Button>
             </div>
           </Surface>
         </div>
