@@ -67,6 +67,28 @@ function providerEventKey(
   return `${input.provider}:${input.externalEventId}`;
 }
 
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+    .join(",")}}`;
+}
+
+function paddlePayloadDigest(rawPayload: string) {
+  const envelope = JSON.parse(rawPayload) as Record<string, unknown>;
+  // A replay may mint a new delivery notification while retaining the same
+  // provider event. Notification IDs are transport metadata, not event data.
+  delete envelope.notification_id;
+  return createHash("sha256").update(canonicalJson(envelope)).digest("hex");
+}
+
 type PaddleSubscriptionEvent =
   | SubscriptionActivatedEvent
   | SubscriptionCanceledEvent
@@ -188,7 +210,7 @@ export function normalizePaddleEvent(
     provider: "paddle" as const,
     externalEventId: event.eventId,
     type: event.eventType,
-    payloadDigest: createHash("sha256").update(rawPayload).digest("hex"),
+    payloadDigest: paddlePayloadDigest(rawPayload),
     providerCreatedAt: new Date(event.occurredAt),
   };
 

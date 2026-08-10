@@ -244,6 +244,63 @@ describe("subscription status mapping", () => {
 });
 
 describe("Paddle event normalization", () => {
+  it("treats changed delivery notification IDs as the same provider event", async () => {
+    configureBilling();
+    const { normalizePaddleEvent } = await import("@/server/billing-service");
+    const event = {
+      eventId: "evt_replayed",
+      eventType: "transaction.completed",
+      occurredAt: "2026-08-02T08:00:00.000Z",
+      data: {
+        id: "txn_replayed",
+        status: "completed",
+        customerId: "ctm_a",
+        subscriptionId: "sub_a",
+        customData: { athreix_workspace_id: "workspace-a" },
+        origin: "web",
+        billingPeriod: {
+          startsAt: "2026-08-01T00:00:00.000Z",
+          endsAt: "2026-09-01T00:00:00.000Z",
+        },
+        items: [
+          {
+            quantity: 1,
+            price: {
+              id: paddlePriceGrowth,
+              billingCycle: { interval: "month", frequency: 1 },
+            },
+          },
+        ],
+      },
+    } as unknown as EventEntity;
+    const envelope = {
+      event_id: "evt_replayed",
+      event_type: "transaction.completed",
+      occurred_at: "2026-08-02T08:00:00.000Z",
+      data: { stable: true },
+    };
+
+    const first = normalizePaddleEvent(
+      event,
+      JSON.stringify({ ...envelope, notification_id: "ntf_first" }),
+    );
+    const replay = normalizePaddleEvent(
+      event,
+      JSON.stringify({ notification_id: "ntf_replay", ...envelope }),
+    );
+    const changed = normalizePaddleEvent(
+      event,
+      JSON.stringify({
+        ...envelope,
+        notification_id: "ntf_replay",
+        data: { stable: false },
+      }),
+    );
+
+    expect(replay.payloadDigest).toBe(first.payloadDigest);
+    expect(changed.payloadDigest).not.toBe(first.payloadDigest);
+  });
+
   it("maps completed web checkout metadata into a monthly entitlement event", async () => {
     configureBilling();
     const { normalizePaddleEvent } = await import("@/server/billing-service");
