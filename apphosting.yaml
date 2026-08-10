@@ -177,15 +177,15 @@ env:
     availability:
       - RUNTIME
   - variable: PADDLE_PRICE_STARTER
-    secret: PADDLE_SANDBOX_PRICE_STARTER
+    value: pri_01kznwtb83rmcy9z2w67mpjrkf
     availability:
       - RUNTIME
   - variable: PADDLE_PRICE_GROWTH
-    secret: PADDLE_SANDBOX_PRICE_GROWTH
+    value: pri_01kznwtbh3hkrw0acvxht5pgqc
     availability:
       - RUNTIME
   - variable: PADDLE_PRICE_SCALE
-    secret: PADDLE_SANDBOX_PRICE_SCALE
+    value: pri_01kznwtbnmsqht1zkmnqm2qqg1
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_PADDLE_ENV
