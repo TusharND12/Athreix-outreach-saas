@@ -128,40 +128,8 @@ env:
     value: code_crafter/leads-finder
     availability:
       - RUNTIME
-  - variable: APIFY_ALLOWED_ACTORS
-    secret: ATHREIX_APIFY_ALLOWED_ACTORS
-    availability:
-      - RUNTIME
   - variable: APIFY_TERMS_VERSION
     value: "2026-08-01"
-    availability:
-      - RUNTIME
-  - variable: APIFY_ACTOR_REVIEWS_JSON
-    secret: ATHREIX_APIFY_ACTOR_REVIEWS_JSON
-    availability:
-      - RUNTIME
-  - variable: APIFY_RESEARCH_ACTORS_JSON
-    secret: APIFY_RESEARCH_ACTORS_JSON
-    availability:
-      - RUNTIME
-  - variable: OPENROUTER_API_KEY
-    secret: OPENROUTER_API_KEY
-    availability:
-      - RUNTIME
-  - variable: OPENROUTER_MODEL
-    secret: ATHREIX_OPENROUTER_MODEL
-    availability:
-      - RUNTIME
-  - variable: OPENROUTER_SCORING_MODEL
-    secret: ATHREIX_OPENROUTER_SCORING_MODEL
-    availability:
-      - RUNTIME
-  - variable: OPENROUTER_OUTREACH_MODEL
-    secret: ATHREIX_OPENROUTER_OUTREACH_MODEL
-    availability:
-      - RUNTIME
-  - variable: OPENROUTER_RESEARCH_MODEL
-    secret: ATHREIX_OPENROUTER_RESEARCH_MODEL
     availability:
       - RUNTIME
   - variable: BILLING_PROVIDER
