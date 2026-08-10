@@ -11,7 +11,7 @@ Launch one accountable owner per workspace, B2B prospect research only, reviewab
 The code cannot create or approve the following production facts. These are the remaining owner/operator gates after `pnpm release:check` passes:
 
 - Add the production OpenRouter key and four explicitly pinned, evaluated model IDs to Secret Manager. Populate `ATHREIX_APIFY_ALLOWED_ACTORS`, `ATHREIX_APIFY_ACTOR_REVIEWS_JSON`, and `APIFY_RESEARCH_ACTORS_JSON`; verify the B2B discovery Actor and every research Actor are both allowlisted and currently reviewed.
-- Create the three live Stripe Prices, choose an approved tax mode, configure the live signing secret/webhook, complete merchant requirements, and exercise the full test-mode billing matrix below.
+- Keep staging on Paddle Sandbox. Before a later production launch, create separate Paddle Live products, Prices, client token, and notification destination; complete merchant/tax/domain requirements; and repeat the full billing matrix below with Live-specific configuration. Never copy Sandbox IDs or secrets into Live.
 - Replace draft legal documents with counsel-approved versions for the actual launch entity and jurisdiction.
 - Attach a customer-facing HTTPS domain, support address/process, alert destination, scheduled retention/monitoring jobs, and tested backup/restore procedure.
 - Record the 100-record model evaluation, live-provider acceptance test, security/abuse review, launch approvers, rollback owner, and exact release commit.
@@ -44,12 +44,11 @@ The code cannot create or approve the following production facts. These are the 
 
 ## Billing and credits
 
-- Confirm the company is approved to use the selected Stripe account in its operating country and for international SaaS sales. Complete merchant, bank, export, tax, and recurring-payment requirements before accepting live payments.
-- Create exactly one active monthly recurring Stripe Price for `STARTER`, `GROWTH`, and `SCALE`; set each Price's `athreixPlan` metadata to that exact plan ID, configure the three distinct Price IDs as runtime configuration, and verify `/api/health` reports `stripe_ready`.
-- Set `BILLING_TAX_MODE=stripe` only after Stripe Tax is activated and registrations are configured. Use `manual` only with a documented, approved external tax calculation, invoicing, filing, and remittance process.
-- Configure the production webhook endpoint and its production-only signing secret for the documented event set. Replay test events and verify altered payloads, unknown Prices, cross-workspace mappings, and stale events fail closed.
-- In test mode, complete first purchase, renewal, payment failure/recovery, cancellation-at-period-end, immediate cancellation, and new subscription after cancellation. Confirm redirects never grant credits and proration invoices never grant a full monthly allowance.
-- Reconcile paid invoices to ledger entries and verify one grant per subscription period under duplicate and out-of-order webhook delivery before enabling checkout in production.
+- For staging, create exactly one active monthly recurring Paddle Sandbox Price for `STARTER`, `GROWTH`, and `SCALE`; configure the three distinct Price IDs, Sandbox client token, API key, and notification secret, then verify `/api/health` reports `paddle_ready`.
+- Subscribe the Sandbox notification destination to `transaction.completed` plus all subscription lifecycle events handled by the app. Replay simulated events and verify altered payloads, unknown Prices, cross-workspace mappings, duplicates, and stale events fail closed.
+- Complete a Sandbox first purchase, renewal, payment failure/recovery, cancellation-at-period-end, and a new subscription after cancellation. Confirm redirects never grant credits and subscription-update transactions never grant a full monthly allowance.
+- Reconcile completed Paddle transactions to ledger entries and verify one grant per transaction under duplicate and out-of-order webhook delivery before considering Paddle Live.
+- Before accepting live payments, complete Paddle's merchant, bank, domain, tax, export, and recurring-payment requirements, then provision entirely separate Live configuration and repeat these checks.
 
 ## AI quality
 
@@ -67,5 +66,5 @@ The code cannot create or approve the following production facts. These are the 
 ## Release gate
 
 - Require a green CI run for formatting, lint, strict TypeScript, unit/component tests, dependency/peer audit, migration deployment, production build, container build, and desktop/mobile browser tests.
-- Run `GET /api/health` against the production domain and require HTTP 200 with no missing configuration. Exercise signup/verification/reset, hosted checkout and a signed paid-invoice credit grant, portal/cancellation, one B2B search, audited reveal, outreach draft with workspace signature, list save, each export format, suppression, privacy request/resolution, retention, session revocation, and admin monitoring.
+- Run `GET /api/health` against the deployment domain and require HTTP 200 with no missing configuration. Exercise signup/verification/reset, Paddle checkout and a signed completed-transaction credit grant, portal/cancellation, one B2B search, audited reveal, outreach draft with workspace signature, list save, each export format, suppression, privacy request/resolution, retention, session revocation, and admin monitoring.
 - Record launch approvers, rollback owner, incident contacts, support path, Actor/source review expiry, model evaluation version, and the exact release commit.

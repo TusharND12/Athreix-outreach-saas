@@ -1,19 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  constructEvent: vi.fn(),
-  normalizeStripeEvent: vi.fn(),
+  unmarshal: vi.fn(),
+  normalizePaddleEvent: vi.fn(),
   applyBillingEvent: vi.fn(),
 }));
+const paddleClientToken = `test_${"a".repeat(27)}`;
+const paddlePriceStarter = `pri_${"a".repeat(26)}`;
+const paddlePriceGrowth = `pri_${"b".repeat(26)}`;
+const paddlePriceScale = `pri_${"c".repeat(26)}`;
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/server/stripe", () => ({
-  getStripe: () => ({
-    webhooks: { constructEvent: mocks.constructEvent },
+vi.mock("@/lib/server/paddle", () => ({
+  getPaddle: () => ({
+    webhooks: { unmarshal: mocks.unmarshal },
   }),
 }));
 vi.mock("@/server/billing-service", () => ({
-  normalizeStripeEvent: mocks.normalizeStripeEvent,
+  normalizePaddleEvent: mocks.normalizePaddleEvent,
   applyBillingEvent: mocks.applyBillingEvent,
 }));
 
@@ -24,26 +28,28 @@ afterEach(() => {
 });
 
 function configureBilling() {
-  vi.stubEnv("BILLING_PROVIDER", "stripe");
-  vi.stubEnv("BILLING_TAX_MODE", "manual");
-  vi.stubEnv("STRIPE_SECRET_KEY", "stripe-secret-test-value");
-  vi.stubEnv(
-    "STRIPE_WEBHOOK_SECRET",
-    ["whsec", "test-not-a-secret-value"].join("_"),
-  );
-  vi.stubEnv("STRIPE_PRICE_STARTER", "price_starter");
-  vi.stubEnv("STRIPE_PRICE_GROWTH", "price_growth");
-  vi.stubEnv("STRIPE_PRICE_SCALE", "price_scale");
+  vi.stubEnv("BILLING_PROVIDER", "paddle");
+  vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test-not-a-secret-value");
+  vi.stubEnv("PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test-not-a-secret-value");
+  vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "sandbox");
+  vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", paddleClientToken);
+  vi.stubEnv("PADDLE_PRICE_STARTER", paddlePriceStarter);
+  vi.stubEnv("PADDLE_PRICE_GROWTH", paddlePriceGrowth);
+  vi.stubEnv("PADDLE_PRICE_SCALE", paddlePriceScale);
 }
 
 describe("billing webhook boundary", () => {
   it("verifies the exact raw body before normalizing an event", async () => {
     configureBilling();
-    const raw = '{ "id": "evt_a",  "type": "invoice.paid" }';
-    const stripeEvent = { id: "evt_a", type: "invoice.paid" };
+    const raw =
+      '{ "event_id": "evt_a",  "event_type": "transaction.completed" }';
+    const paddleEvent = {
+      eventId: "evt_a",
+      eventType: "transaction.completed",
+    };
     const normalized = { externalEventId: "evt_a" };
-    mocks.constructEvent.mockReturnValue(stripeEvent);
-    mocks.normalizeStripeEvent.mockResolvedValue(normalized);
+    mocks.unmarshal.mockResolvedValue(paddleEvent);
+    mocks.normalizePaddleEvent.mockReturnValue(normalized);
     mocks.applyBillingEvent.mockResolvedValue({
       replayed: false,
       outcome: "PROCESSED",
@@ -56,37 +62,31 @@ describe("billing webhook boundary", () => {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "stripe-signature": "t=123,v1=signature",
+          "paddle-signature": "ts=123;h1=signature",
         },
         body: raw,
       }),
     );
 
     expect(response.status).toBe(200);
-    expect(mocks.constructEvent).toHaveBeenCalledWith(
+    expect(mocks.unmarshal).toHaveBeenCalledWith(
       raw,
-      "t=123,v1=signature",
-      ["whsec", "test-not-a-secret-value"].join("_"),
+      "pdl_ntfset_test-not-a-secret-value",
+      "ts=123;h1=signature",
     );
-    expect(mocks.normalizeStripeEvent).toHaveBeenCalledWith(
-      stripeEvent,
-      raw,
-      expect.any(Object),
-    );
+    expect(mocks.normalizePaddleEvent).toHaveBeenCalledWith(paddleEvent, raw);
     expect(mocks.applyBillingEvent).toHaveBeenCalledWith(normalized);
   });
 
   it("rejects an invalid signature before event processing", async () => {
     configureBilling();
-    mocks.constructEvent.mockImplementation(() => {
-      throw new Error("signature mismatch");
-    });
+    mocks.unmarshal.mockRejectedValue(new Error("signature mismatch"));
     const { POST } = await import("@/app/api/billing/webhook/route");
 
     const response = await POST(
       new Request("https://outreach.athreix.com/api/billing/webhook", {
         method: "POST",
-        headers: { "stripe-signature": "invalid" },
+        headers: { "paddle-signature": "invalid" },
         body: "{}",
       }),
     );
@@ -96,7 +96,7 @@ describe("billing webhook boundary", () => {
 
     expect(response.status).toBe(400);
     expect(payload.error.code).toBe("BILLING_SIGNATURE_INVALID");
-    expect(mocks.normalizeStripeEvent).not.toHaveBeenCalled();
+    expect(mocks.normalizePaddleEvent).not.toHaveBeenCalled();
     expect(mocks.applyBillingEvent).not.toHaveBeenCalled();
   });
 });

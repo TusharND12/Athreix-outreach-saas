@@ -1,10 +1,10 @@
 import { apiRoute, apiSuccess } from "@/lib/server/api";
 import { env } from "@/lib/server/env";
 import { AppError } from "@/lib/server/errors";
-import { getStripe } from "@/lib/server/stripe";
+import { getPaddle } from "@/lib/server/paddle";
 import {
   applyBillingEvent,
-  normalizeStripeEvent,
+  normalizePaddleEvent,
 } from "@/server/billing-service";
 
 const maximumWebhookBytes = 1024 * 1024;
@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   return apiRoute(async () => {
-    if (!env.billingReady || !env.STRIPE_WEBHOOK_SECRET) {
+    if (!env.billingReady || !env.PADDLE_WEBHOOK_SECRET) {
       throw new AppError(
         "BILLING_NOT_CONFIGURED",
         "The billing webhook is not configured.",
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
         413,
       );
     }
-    const signature = request.headers.get("stripe-signature");
+    const signature = request.headers.get("paddle-signature");
     if (!signature) {
       throw new AppError(
         "BILLING_SIGNATURE_REQUIRED",
@@ -47,13 +47,13 @@ export async function POST(request: Request) {
         413,
       );
     }
-    const stripe = getStripe();
+    const paddle = getPaddle();
     let event;
     try {
-      event = stripe.webhooks.constructEvent(
+      event = await paddle.webhooks.unmarshal(
         rawPayload,
+        env.PADDLE_WEBHOOK_SECRET,
         signature,
-        env.STRIPE_WEBHOOK_SECRET,
       );
     } catch {
       throw new AppError(
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         400,
       );
     }
-    const normalized = await normalizeStripeEvent(event, rawPayload, stripe);
+    const normalized = normalizePaddleEvent(event, rawPayload);
     const result = await applyBillingEvent(normalized);
     return apiSuccess({ received: true, ...result });
   });

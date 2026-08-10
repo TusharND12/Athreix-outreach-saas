@@ -1,10 +1,22 @@
 import { createHash } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
-import type Stripe from "stripe";
+import {
+  EventName,
+  type EventEntity,
+  type SubscriptionActivatedEvent,
+  type SubscriptionCanceledEvent,
+  type SubscriptionCreatedEvent,
+  type SubscriptionPastDueEvent,
+  type SubscriptionPausedEvent,
+  type SubscriptionResumedEvent,
+  type SubscriptionTrialingEvent,
+  type SubscriptionUpdatedEvent,
+  type TransactionCompletedEvent,
+} from "@paddle/paddle-node-sdk";
 import { db } from "@/lib/server/db";
 import { env } from "@/lib/server/env";
 import { AppError } from "@/lib/server/errors";
-import { getStripe } from "@/lib/server/stripe";
+import { getPaddle } from "@/lib/server/paddle";
 import {
   billingPlan,
   billingPlanForPrice,
@@ -15,7 +27,7 @@ type InternalSubscriptionStatus =
   "TRIALING" | "ACTIVE" | "PAST_DUE" | "PAUSED" | "CANCELLED";
 
 export type NormalizedBillingEvent = {
-  provider: "stripe";
+  provider: "paddle";
   externalEventId: string;
   type: string;
   payloadDigest: string;
@@ -34,11 +46,6 @@ export type NormalizedBillingEvent = {
   billingReason?: string;
 };
 
-function externalId(value: string | { id: string } | null | undefined) {
-  if (!value) return undefined;
-  return typeof value === "string" ? value : value.id;
-}
-
 function validWorkspaceMetadata(value: string | undefined) {
   if (!value || value.length > 128 || !/^[A-Za-z0-9_-]+$/.test(value)) {
     return undefined;
@@ -46,8 +53,12 @@ function validWorkspaceMetadata(value: string | undefined) {
   return value;
 }
 
-function subscriptionIdFromInvoice(invoice: Stripe.Invoice) {
-  return externalId(invoice.parent?.subscription_details?.subscription);
+function stringCustomData(
+  customData: Record<string, unknown> | null,
+  key: string,
+) {
+  const value = customData?.[key];
+  return typeof value === "string" ? value : undefined;
 }
 
 function providerEventKey(
@@ -55,6 +66,16 @@ function providerEventKey(
 ) {
   return `${input.provider}:${input.externalEventId}`;
 }
+
+type PaddleSubscriptionEvent =
+  | SubscriptionActivatedEvent
+  | SubscriptionCanceledEvent
+  | SubscriptionCreatedEvent
+  | SubscriptionPastDueEvent
+  | SubscriptionPausedEvent
+  | SubscriptionResumedEvent
+  | SubscriptionTrialingEvent
+  | SubscriptionUpdatedEvent;
 
 function normalizeSubscription(
   base: Pick<
@@ -65,18 +86,16 @@ function normalizeSubscription(
     | "payloadDigest"
     | "providerCreatedAt"
   >,
-  subscription: Stripe.Subscription,
-  options?: {
-    expectedWorkspaceId?: string;
-    externalInvoiceId?: string;
-    grantMonthlyCredits?: boolean;
-    billingReason?: string;
-    periodStart?: Date;
-    periodEnd?: Date;
-  },
+  event: PaddleSubscriptionEvent,
 ): NormalizedBillingEvent {
-  const item = subscription.items.data[0];
-  if (!item || subscription.items.data.length !== 1 || item.quantity !== 1) {
+  const subscription = event.data;
+  const item = subscription.items[0];
+  if (
+    !item?.price?.id ||
+    subscription.items.length !== 1 ||
+    item.quantity !== 1 ||
+    !item.recurring
+  ) {
     throw new AppError(
       "BILLING_SUBSCRIPTION_SHAPE_INVALID",
       "The subscription does not contain exactly one Athreix plan.",
@@ -84,126 +103,110 @@ function normalizeSubscription(
     );
   }
   const workspaceId = validWorkspaceMetadata(
-    subscription.metadata.athreixWorkspaceId,
+    stringCustomData(subscription.customData, "athreix_workspace_id"),
   );
+  return {
+    ...base,
+    handled: true,
+    workspaceId,
+    externalCustomerId: subscription.customerId,
+    externalSubscriptionId: subscription.id,
+    externalInvoiceId:
+      event.eventType === EventName.SubscriptionCreated
+        ? event.data.transactionId
+        : undefined,
+    priceId: item.price.id,
+    providerStatus: subscription.status,
+    currentPeriodStart: subscription.currentBillingPeriod
+      ? new Date(subscription.currentBillingPeriod.startsAt)
+      : undefined,
+    currentPeriodEnd: subscription.currentBillingPeriod
+      ? new Date(subscription.currentBillingPeriod.endsAt)
+      : undefined,
+    cancelAtPeriodEnd: subscription.scheduledChange?.action === "cancel",
+  };
+}
+
+function normalizeTransaction(
+  base: Pick<
+    NormalizedBillingEvent,
+    | "provider"
+    | "externalEventId"
+    | "type"
+    | "payloadDigest"
+    | "providerCreatedAt"
+  >,
+  event: TransactionCompletedEvent,
+): NormalizedBillingEvent {
+  const transaction = event.data;
+  const item = transaction.items[0];
   if (
-    options?.expectedWorkspaceId &&
-    workspaceId !== options.expectedWorkspaceId
+    !transaction.customerId ||
+    !transaction.subscriptionId ||
+    !item?.price?.id ||
+    transaction.items.length !== 1 ||
+    item.quantity !== 1 ||
+    !item.price.billingCycle
   ) {
     throw new AppError(
-      "BILLING_WORKSPACE_MISMATCH",
-      "The signed billing event does not match its workspace reference.",
+      "BILLING_SUBSCRIPTION_SHAPE_INVALID",
+      "The completed transaction does not contain exactly one Athreix subscription plan.",
       500,
     );
   }
   return {
     ...base,
     handled: true,
-    workspaceId,
-    externalCustomerId: externalId(subscription.customer),
-    externalSubscriptionId: subscription.id,
-    externalInvoiceId: options?.externalInvoiceId,
+    workspaceId: validWorkspaceMetadata(
+      stringCustomData(transaction.customData, "athreix_workspace_id"),
+    ),
+    externalCustomerId: transaction.customerId,
+    externalSubscriptionId: transaction.subscriptionId,
+    externalInvoiceId: transaction.id,
     priceId: item.price.id,
-    providerStatus: subscription.status,
-    currentPeriodStart:
-      options?.periodStart ?? new Date(item.current_period_start * 1_000),
-    currentPeriodEnd:
-      options?.periodEnd ?? new Date(item.current_period_end * 1_000),
-    cancelAtPeriodEnd: subscription.cancel_at_period_end,
-    grantMonthlyCredits: options?.grantMonthlyCredits,
-    billingReason: options?.billingReason,
+    providerStatus: "active",
+    currentPeriodStart: transaction.billingPeriod
+      ? new Date(transaction.billingPeriod.startsAt)
+      : undefined,
+    currentPeriodEnd: transaction.billingPeriod
+      ? new Date(transaction.billingPeriod.endsAt)
+      : undefined,
+    cancelAtPeriodEnd: false,
+    grantMonthlyCredits:
+      transaction.status === "completed" &&
+      ["web", "subscription_recurring"].includes(transaction.origin) &&
+      Boolean(transaction.billingPeriod),
+    billingReason: transaction.origin,
   };
 }
 
-export async function normalizeStripeEvent(
-  event: Stripe.Event,
+export function normalizePaddleEvent(
+  event: EventEntity,
   rawPayload: string,
-  stripe = getStripe(),
-): Promise<NormalizedBillingEvent> {
+): NormalizedBillingEvent {
   const base = {
-    provider: "stripe" as const,
-    externalEventId: event.id,
-    type: event.type,
+    provider: "paddle" as const,
+    externalEventId: event.eventId,
+    type: event.eventType,
     payloadDigest: createHash("sha256").update(rawPayload).digest("hex"),
-    providerCreatedAt: new Date(event.created * 1_000),
+    providerCreatedAt: new Date(event.occurredAt),
   };
 
-  if (
-    event.type === "customer.subscription.created" ||
-    event.type === "customer.subscription.updated" ||
-    event.type === "customer.subscription.deleted"
-  ) {
-    return normalizeSubscription(base, event.data.object);
-  }
-
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const subscriptionId = externalId(session.subscription);
-    if (session.mode !== "subscription" || !subscriptionId) {
-      throw new AppError(
-        "BILLING_CHECKOUT_INVALID",
-        "The completed checkout is not an Athreix subscription.",
-        500,
-      );
-    }
-    const expectedWorkspaceId = validWorkspaceMetadata(
-      session.client_reference_id ?? undefined,
-    );
-    if (!expectedWorkspaceId) {
-      throw new AppError(
-        "BILLING_WORKSPACE_UNRESOLVED",
-        "The completed checkout is missing its workspace reference.",
-        500,
-      );
-    }
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    return normalizeSubscription(base, subscription, { expectedWorkspaceId });
-  }
-
-  if (
-    event.type === "invoice.paid" ||
-    event.type === "invoice.payment_failed"
-  ) {
-    const invoice = event.data.object;
-    const subscriptionId = subscriptionIdFromInvoice(invoice);
-    if (!subscriptionId) {
+  switch (event.eventType) {
+    case EventName.SubscriptionActivated:
+    case EventName.SubscriptionCanceled:
+    case EventName.SubscriptionCreated:
+    case EventName.SubscriptionPastDue:
+    case EventName.SubscriptionPaused:
+    case EventName.SubscriptionResumed:
+    case EventName.SubscriptionTrialing:
+    case EventName.SubscriptionUpdated:
+      return normalizeSubscription(base, event);
+    case EventName.TransactionCompleted:
+      return normalizeTransaction(base, event);
+    default:
       return { ...base, handled: false };
-    }
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const subscriptionItem = subscription.items.data[0];
-    const recurringLine = invoice.lines.data.find(
-      (line) =>
-        subscriptionItem &&
-        line.parent?.type === "subscription_item_details" &&
-        line.parent.subscription_item_details?.subscription_item ===
-          subscriptionItem.id &&
-        !line.parent.subscription_item_details.proration,
-    );
-    const expectedWorkspaceId = validWorkspaceMetadata(
-      invoice.parent?.subscription_details?.metadata?.athreixWorkspaceId as
-        string | undefined,
-    );
-    return normalizeSubscription(base, subscription, {
-      expectedWorkspaceId,
-      externalInvoiceId: invoice.id,
-      billingReason: invoice.billing_reason ?? undefined,
-      grantMonthlyCredits:
-        event.type === "invoice.paid" &&
-        invoice.status === "paid" &&
-        ["subscription_create", "subscription_cycle"].includes(
-          invoice.billing_reason ?? "",
-        ) &&
-        Boolean(recurringLine),
-      periodStart: recurringLine
-        ? new Date(recurringLine.period.start * 1_000)
-        : undefined,
-      periodEnd: recurringLine
-        ? new Date(recurringLine.period.end * 1_000)
-        : undefined,
-    });
   }
-
-  return { ...base, handled: false };
 }
 
 export function mapSubscriptionStatus(
@@ -232,9 +235,7 @@ export function monthlyEntitlementIsAllowed(input: {
   return Boolean(
     input.externalInvoiceId &&
     input.subscriptionStatus === "ACTIVE" &&
-    ["subscription_create", "subscription_cycle"].includes(
-      input.billingReason ?? "",
-    ) &&
+    ["web", "subscription_recurring"].includes(input.billingReason ?? "") &&
     input.currentPeriodStart,
   );
 }
@@ -446,12 +447,12 @@ export async function applyBillingEvent(
           ) {
             throw new AppError(
               "BILLING_ENTITLEMENT_INVALID",
-              "Credits can only be granted for a paid invoice on an active subscription.",
+              "Credits can only be granted for a completed recurring subscription transaction.",
               500,
             );
           }
           const periodStart = input.currentPeriodStart!;
-          const idempotencyKey = `stripe:subscription:${input.externalSubscriptionId}:period:${periodStart.toISOString()}:monthly-grant`;
+          const idempotencyKey = `paddle:transaction:${input.externalInvoiceId}:monthly-grant`;
           const existingGrant = await tx.creditLedger.findUnique({
             where: { idempotencyKey },
           });
@@ -467,10 +468,10 @@ export async function applyBillingEvent(
                 type: "MONTHLY_GRANT",
                 amount: plan.monthlyCredits,
                 balanceAfter: changed.creditBalance,
-                referenceType: "stripe_invoice",
+                referenceType: "paddle_transaction",
                 referenceId: input.externalInvoiceId,
                 idempotencyKey,
-                description: `${plan.id} monthly credits after paid invoice`,
+                description: `${plan.id} monthly credits after completed Paddle transaction`,
                 metadata: {
                   provider: input.provider,
                   externalSubscriptionId: input.externalSubscriptionId,
@@ -568,45 +569,21 @@ export async function createCheckout(input: {
     );
   }
 
-  const stripe = getStripe();
-  const session = await stripe.checkout.sessions.create(
-    {
-      mode: "subscription",
-      line_items: [{ price: selectedPlan.priceId, quantity: 1 }],
-      client_reference_id: input.workspaceId,
-      ...(subscription?.externalCustomerId
-        ? {
-            customer: subscription.externalCustomerId,
-            customer_update: { address: "auto", name: "auto" },
-          }
-        : { customer_email: user.email }),
-      billing_address_collection: "required",
-      tax_id_collection: { enabled: true },
-      automatic_tax: { enabled: env.billingTaxMode === "stripe" },
-      allow_promotion_codes: true,
-      success_url: `${env.NEXT_PUBLIC_APP_URL}/billing?checkout=success`,
-      cancel_url: `${env.NEXT_PUBLIC_APP_URL}/billing?checkout=cancelled`,
-      metadata: {
-        athreixWorkspaceId: input.workspaceId,
-        athreixPlan: input.plan,
-      },
-      subscription_data: {
-        metadata: {
-          athreixWorkspaceId: input.workspaceId,
-          athreixPlan: input.plan,
-        },
-      },
+  const sessionId = `paddle_checkout_${createHash("sha256")
+    .update(`${input.workspaceId}:${input.idempotencyKey}`)
+    .digest("hex")
+    .slice(0, 24)}`;
+  return {
+    sessionId,
+    priceId: selectedPlan.priceId,
+    customer: subscription?.externalCustomerId
+      ? { id: subscription.externalCustomerId }
+      : { email: user.email },
+    customData: {
+      athreix_workspace_id: input.workspaceId,
+      athreix_plan: input.plan,
     },
-    { idempotencyKey: `checkout:${input.workspaceId}:${input.idempotencyKey}` },
-  );
-  if (!session.url) {
-    throw new AppError(
-      "BILLING_CHECKOUT_UNAVAILABLE",
-      "The payment provider did not return a checkout URL.",
-      502,
-    );
-  }
-  return { sessionId: session.id, url: session.url };
+  };
 }
 
 export async function createCustomerPortal(workspaceId: string) {
@@ -628,9 +605,46 @@ export async function createCustomerPortal(workspaceId: string) {
       404,
     );
   }
-  const session = await getStripe().billingPortal.sessions.create({
-    customer: subscription.externalCustomerId,
-    return_url: `${env.NEXT_PUBLIC_APP_URL}/billing`,
+  const subscriptionIds = subscription.externalSubscriptionId
+    ? [subscription.externalSubscriptionId]
+    : [];
+  const session = await getPaddle().customerPortalSessions.create(
+    subscription.externalCustomerId,
+    subscriptionIds,
+  );
+  return { url: session.urls.general.overview };
+}
+
+export async function cancelSubscription(workspaceId: string) {
+  if (!env.billingReady) {
+    throw new AppError(
+      "BILLING_NOT_CONFIGURED",
+      "Paid billing is not available for this environment.",
+      503,
+    );
+  }
+  const subscription = await db.subscription.findFirst({
+    where: { workspaceId },
+    orderBy: { createdAt: "desc" },
   });
-  return { url: session.url };
+  if (
+    !subscription?.externalSubscriptionId ||
+    !subscription.externalCustomerId ||
+    subscription.status === "CANCELLED"
+  ) {
+    throw new AppError(
+      "BILLING_SUBSCRIPTION_NOT_FOUND",
+      "This workspace does not have an active managed subscription.",
+      404,
+    );
+  }
+  const canceled = await getPaddle().subscriptions.cancel(
+    subscription.externalSubscriptionId,
+    { effectiveFrom: "next_billing_period" },
+  );
+  return {
+    subscriptionId: canceled.id,
+    status: canceled.status,
+    scheduledChange: canceled.scheduledChange?.effectiveAt ?? null,
+  };
 }

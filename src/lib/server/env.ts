@@ -6,6 +6,8 @@ const optionalMinimum = (minimum: number) =>
   z.preprocess(emptyAsUndefined, z.string().min(minimum).optional());
 const optionalPrefix = (prefix: string) =>
   z.preprocess(emptyAsUndefined, z.string().startsWith(prefix).optional());
+const optionalPattern = (pattern: RegExp) =>
+  z.preprocess(emptyAsUndefined, z.string().regex(pattern).optional());
 const optionalEmail = z.preprocess(
   emptyAsUndefined,
   z.string().email().optional(),
@@ -85,13 +87,15 @@ const envSchema = z.object({
   CRON_SECRET: optionalMinimum(16),
   EMAIL_SERVER: z.string().optional(),
   EMAIL_FROM: optionalEmail,
-  BILLING_PROVIDER: z.enum(["stripe"]).optional(),
-  BILLING_TAX_MODE: z.enum(["stripe", "manual"]).optional(),
-  STRIPE_SECRET_KEY: optionalMinimum(16),
-  STRIPE_WEBHOOK_SECRET: optionalMinimum(16),
-  STRIPE_PRICE_STARTER: optionalPrefix("price_"),
-  STRIPE_PRICE_GROWTH: optionalPrefix("price_"),
-  STRIPE_PRICE_SCALE: optionalPrefix("price_"),
+  BILLING_PROVIDER: z.enum(["paddle"]).optional(),
+  PADDLE_API_KEY: optionalPrefix("pdl_sdbx_apikey_"),
+  PADDLE_SANDBOX_API_KEY: optionalPrefix("pdl_sdbx_apikey_"),
+  PADDLE_WEBHOOK_SECRET: optionalPrefix("pdl_ntfset_"),
+  PADDLE_PRICE_STARTER: optionalPattern(/^pri_[a-z\d]{26}$/),
+  PADDLE_PRICE_GROWTH: optionalPattern(/^pri_[a-z\d]{26}$/),
+  PADDLE_PRICE_SCALE: optionalPattern(/^pri_[a-z\d]{26}$/),
+  NEXT_PUBLIC_PADDLE_ENV: z.enum(["sandbox"]).optional(),
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: optionalPattern(/^test_[A-Za-z\d]{27}$/),
   PASSWORD_RESET_TTL_MINUTES: z.preprocess(
     emptyAsUndefined,
     z.coerce.number().int().min(5).max(120).default(30),
@@ -415,19 +419,20 @@ const demoMode =
 const liveDataOnly =
   raw.LIVE_DATA_ONLY === "true" || raw.NEXT_PUBLIC_LIVE_DATA_ONLY === "true";
 const billingPriceIds = {
-  STARTER: raw.STRIPE_PRICE_STARTER,
-  GROWTH: raw.STRIPE_PRICE_GROWTH,
-  SCALE: raw.STRIPE_PRICE_SCALE,
+  STARTER: raw.PADDLE_PRICE_STARTER,
+  GROWTH: raw.PADDLE_PRICE_GROWTH,
+  SCALE: raw.PADDLE_PRICE_SCALE,
 } as const;
 const configuredBillingPriceIds = Object.values(billingPriceIds).filter(
   (priceId): priceId is string => Boolean(priceId),
 );
+const paddleApiKey = raw.PADDLE_API_KEY ?? raw.PADDLE_SANDBOX_API_KEY;
 const billingReady = Boolean(
-  raw.BILLING_PROVIDER === "stripe" &&
-  raw.BILLING_TAX_MODE &&
-  raw.STRIPE_SECRET_KEY &&
-  raw.STRIPE_WEBHOOK_SECRET &&
-  raw.STRIPE_WEBHOOK_SECRET.startsWith("whsec_") &&
+  raw.BILLING_PROVIDER === "paddle" &&
+  paddleApiKey &&
+  raw.PADDLE_WEBHOOK_SECRET &&
+  raw.NEXT_PUBLIC_PADDLE_ENV === "sandbox" &&
+  raw.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN &&
   configuredBillingPriceIds.length === 3 &&
   new Set(configuredBillingPriceIds).size === 3,
 );
@@ -465,6 +470,7 @@ function productionAuthUrlIsReady(authUrl?: string, publicAppUrl?: string) {
 
 export const env = {
   ...raw,
+  PADDLE_API_KEY: paddleApiKey,
   FIREBASE_PROJECT_ID: raw.FIREBASE_PROJECT_ID || undefined,
   FIREBASE_STORAGE_BUCKET: raw.FIREBASE_STORAGE_BUCKET || undefined,
   ENCRYPTION_KEY: raw.FIELD_ENCRYPTION_KEY ?? raw.ENCRYPTION_KEY,
@@ -503,7 +509,6 @@ export const env = {
     (raw.FIREBASE_PROJECT_ID && raw.NEXT_PUBLIC_FIREBASE_API_KEY),
   ),
   billingProvider: raw.BILLING_PROVIDER,
-  billingTaxMode: raw.BILLING_TAX_MODE,
   billingPriceIds,
   billingReady,
   openRouterModelsPinned,

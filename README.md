@@ -7,7 +7,7 @@ Athreix is an AI-native lead intelligence platform for autonomous B2B company re
 - Premium public site, authentication experience, and responsive product shell
 - Natural-language search understanding with a visible, editable research plan
 - Parallel Apify research across search, maps, websites, key pages, careers, news, reviews, profiles, and social presence
-- Firebase Authentication, Cloud Firestore persistence and distributed abuse protection, Firebase Storage exports, Google Cloud Tasks/Cloud Run job orchestration, a signed and idempotent Stripe subscription boundary, credits ledger, RBAC, and audit events
+- Firebase Authentication, Cloud Firestore persistence and distributed abuse protection, Firebase Storage exports, Google Cloud Tasks/Cloud Run job orchestration, a signed and idempotent Paddle subscription boundary, credits ledger, RBAC, and audit events
 - OpenRouter structured intelligence for search understanding, company summaries, audits, technology detection, buying intent, qualification, strategy, outreach, competitors, industries, and company chat
 - One-page company intelligence reports with website analysis, decision-makers, activity timeline, recommendations, and citation-level evidence
 - Results filtering, provenance, consent/suppression controls, saved searches, tasks, notifications, usage, settings, and admin operations
@@ -41,7 +41,7 @@ If `.env.local` is configured for the live Firebase project, start an isolated l
 3. Generate unique `AUTH_SECRET`, `FIELD_ENCRYPTION_KEY`, `CRON_SECRET`, and `SEARCH_TASK_SIGNING_SECRET` values and store them in the managed runtime secret store. Give the worker the task-signing secret, but not the unrelated retention secret.
 4. Review and approve specific Apify Actors, then set `APIFY_B2B_ACTOR_ID`, `APIFY_RESEARCH_ACTORS_JSON`, and `APIFY_API_TOKEN`. Actor choice is deliberately not hard-coded; every production Actor must be allowlisted and have a current terms/security review. The retained B2C service boundary is not part of the initial customer-facing launch.
 5. Set `OPENROUTER_API_KEY`. The default `openrouter/auto` routing can be replaced independently for research, high-volume scoring, and outreach. Calls use strict JSON schemas, explicit timeout/retry limits, bounded concurrency, ordered analysis windows, and an auditable deterministic fallback after the configured analysis budget.
-6. Obtain an approved Stripe account, create one active monthly recurring Price for every Athreix tier, decide and document either Stripe Tax or an approved manual tax process, then configure the signed webhook. Billing remains unavailable until all billing variables pass readiness validation.
+6. In Paddle Sandbox, create one active monthly recurring Price for every Athreix tier, a client-side token, and a notification destination for `/api/billing/webhook`. Billing remains unavailable until the sandbox API key, destination secret, client token, and all Price IDs pass readiness validation. Do not reuse sandbox values for Paddle Live.
 7. Deploy the Next.js app with Firebase App Hosting in `us-central1` behind its global CDN. App Hosting and Firebase Storage require the Blaze plan; Cloud Tasks and Cloud Run use the same Google Cloud billing account and do not require a separate vendor.
 
 ## Commands

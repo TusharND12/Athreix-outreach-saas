@@ -5,7 +5,7 @@ import {
   firebaseAuthIsReachable,
   firebaseStorageIsReachable,
 } from "@/lib/server/firebase-admin";
-import { billingProviderIsReachable } from "@/lib/server/stripe";
+import { billingProviderIsReachable } from "@/lib/server/paddle";
 import { queueIsReachable } from "@/server/job-queue";
 
 export async function GET() {
@@ -36,7 +36,7 @@ export async function GET() {
       ? ["APIFY_B2C_ACTOR_REVIEW"]
       : []),
     ...(env.billingReady && !billingProvider
-      ? ["STRIPE_PRICE_VALIDATION"]
+      ? ["PADDLE_PRICE_VALIDATION"]
       : []),
     ...(!env.openRouterEnabled ? ["OPENROUTER_API_KEY"] : []),
     ...(env.openRouterEnabled && !env.openRouterModelsPinned
@@ -48,12 +48,13 @@ export async function GET() {
     ...(!env.billingReady
       ? [
           "BILLING_PROVIDER",
-          "BILLING_TAX_MODE",
-          "STRIPE_SECRET_KEY",
-          "STRIPE_WEBHOOK_SECRET",
-          "STRIPE_PRICE_STARTER",
-          "STRIPE_PRICE_GROWTH",
-          "STRIPE_PRICE_SCALE",
+          "PADDLE_API_KEY",
+          "PADDLE_WEBHOOK_SECRET",
+          "NEXT_PUBLIC_PADDLE_ENV",
+          "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN",
+          "PADDLE_PRICE_STARTER",
+          "PADDLE_PRICE_GROWTH",
+          "PADDLE_PRICE_SCALE",
         ]
       : []),
     ...(!env.cronReady ? ["CRON_SECRET"] : []),

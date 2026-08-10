@@ -14,7 +14,7 @@ flowchart LR
   W --> O[OpenRouter structured intelligence]
   W --> F
   N --> S[Firebase Storage]
-  U --> ST[Stripe-hosted Checkout and Portal]
+  U --> ST[Paddle Checkout and Customer Portal]
   ST -->|signed webhook| N
   N --> U
 ```
@@ -23,7 +23,7 @@ The Next.js application owns server-rendered pages, authenticated APIs, permissi
 
 Cloud Firestore is the source of truth for users, workspaces, billing, searches, jobs, results, and the append-only audit ledger. Firebase Authentication owns password identities, Auth.js issues the application session, and Firebase Storage holds private expiring export artifacts. Browser access to Firestore and Storage is denied; all product access passes through authenticated server APIs and Admin SDK IAM.
 
-Stripe is an external payment processor, not the entitlement source of truth. Only workspace owners can create hosted Checkout or Portal sessions. The browser never submits an amount or credit quantity. A raw-body signature-verified webhook maps a configured Stripe Price to an internal plan, verifies the workspace/customer/subscription binding, rejects stale state changes, and appends credits only for a paid subscription-creation or subscription-cycle invoice. The billing event, subscription state, workspace balance, and unique subscription-period ledger grant commit in one transaction.
+Paddle Sandbox is the external payment processor for staging, not the entitlement source of truth. Only workspace owners can request a server-authorized Checkout or Customer Portal session; the server maps the requested plan to a configured Paddle Price and binds workspace metadata before Paddle.js opens the overlay. A raw-body signature-verified webhook maps a configured Paddle Price to an internal plan, verifies the workspace/customer/subscription binding, rejects stale state changes, and appends credits only for a completed initial or recurring subscription transaction. The billing event, subscription state, workspace balance, and unique transaction ledger grant commit in one transaction.
 
 ## Search lifecycle
 

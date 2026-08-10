@@ -2,7 +2,7 @@
 
 ## Health signals
 
-Monitor web/API availability, Firestore latency/quota/index errors, Firebase Authentication failures, Firebase Storage upload/deletion failures, Cloud Tasks queue age/depth/retries, Cloud Run worker latency/errors, failed jobs, Stripe webhook failure/retry age and invoice/ledger reconciliation, Apify run cost and failure rate, OpenRouter latency/refusal/schema errors, export failures, credit reconciliation mismatches, rate-limit events, and suppression/deletion SLA.
+Monitor web/API availability, Firestore latency/quota/index errors, Firebase Authentication failures, Firebase Storage upload/deletion failures, Cloud Tasks queue age/depth/retries, Cloud Run worker latency/errors, failed jobs, Paddle webhook failure/retry age and transaction/ledger reconciliation, Apify run cost and failure rate, OpenRouter latency/refusal/schema errors, export failures, credit reconciliation mismatches, rate-limit events, and suppression/deletion SLA.
 
 Firestore is the authoritative application and audit store. Deploy rule/index changes with `pnpm firebase:deploy`; deploy Storage rules separately with `pnpm firebase:deploy:storage` after the bucket is activated. Validate server access with `pnpm firebase:smoke` and never expose an Admin SDK credential to browser code.
 
@@ -51,10 +51,10 @@ Do not advertise automatic monthly credit renewal until the payment provider or 
 
 ## Billing reconciliation
 
-1. Treat Stripe as the payment record and `CreditLedger` as the spendable-credit record. Never adjust credits from Checkout success redirects or customer-subscription status alone.
-2. Configure the webhook for `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, and `invoice.payment_failed`.
-3. Alert on any non-2xx webhook delivery. Correct configuration or mapping failures and allow Stripe to retry the same event; event ID and payload digest checks make retries safe.
-4. Reconcile each paid `subscription_create` or `subscription_cycle` invoice to exactly one ledger row keyed by subscription and service-period start. Plan-change/proration invoices must not create a full monthly grant.
+1. Treat Paddle as the payment record and `CreditLedger` as the spendable-credit record. Never adjust credits from Checkout success redirects or subscription status alone.
+2. Configure the Paddle Sandbox notification destination for `transaction.completed`, `subscription.created`, `subscription.updated`, `subscription.canceled`, `subscription.activated`, `subscription.trialing`, `subscription.past_due`, `subscription.paused`, and `subscription.resumed`.
+3. Alert on any non-2xx webhook delivery. Correct configuration or mapping failures and allow Paddle to retry the same event; event ID and payload digest checks make retries safe.
+4. Reconcile each completed `web` or `subscription_recurring` transaction to exactly one ledger row keyed by Paddle transaction ID. Subscription-update and prorated transactions must not create a full monthly grant.
 5. Resolve customer/subscription-to-workspace conflicts manually. Do not rewrite identifiers or issue credits until ownership is verified from both systems.
 6. Rotate the webhook secret after suspected exposure and keep old/new endpoint overlap only for the provider-supported rotation window.
 

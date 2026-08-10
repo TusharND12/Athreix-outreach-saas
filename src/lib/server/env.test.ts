@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const paddleClientToken = `test_${"a".repeat(27)}`;
+const paddlePriceStarter = `pri_${"a".repeat(26)}`;
+const paddlePriceGrowth = `pri_${"b".repeat(26)}`;
+const paddlePriceScale = `pri_${"c".repeat(26)}`;
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.resetModules();
@@ -178,44 +183,54 @@ describe("production URL safety", () => {
 });
 
 describe("billing readiness", () => {
-  it("requires an explicit tax mode, signed webhook, and every plan price", async () => {
-    vi.stubEnv("BILLING_PROVIDER", "stripe");
-    vi.stubEnv("BILLING_TAX_MODE", "manual");
-    vi.stubEnv("STRIPE_SECRET_KEY", "stripe-secret-test-value");
-    vi.stubEnv(
-      "STRIPE_WEBHOOK_SECRET",
-      ["whsec", "test-not-a-secret-value"].join("_"),
-    );
-    vi.stubEnv("STRIPE_PRICE_STARTER", "price_starter");
-    vi.stubEnv("STRIPE_PRICE_GROWTH", "price_growth");
-    vi.stubEnv("STRIPE_PRICE_SCALE", "price_scale");
+  it("requires Paddle Sandbox credentials, signed webhook, client token, and every plan price", async () => {
+    vi.stubEnv("BILLING_PROVIDER", "paddle");
+    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test-not-a-secret-value");
+    vi.stubEnv("PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test-not-a-secret-value");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "sandbox");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", paddleClientToken);
+    vi.stubEnv("PADDLE_PRICE_STARTER", paddlePriceStarter);
+    vi.stubEnv("PADDLE_PRICE_GROWTH", paddlePriceGrowth);
+    vi.stubEnv("PADDLE_PRICE_SCALE", paddlePriceScale);
     const { env } = await import("@/lib/server/env");
     expect(env.billingReady).toBe(true);
   });
 
   it("keeps billing fail-closed when webhook verification is missing", async () => {
-    vi.stubEnv("BILLING_PROVIDER", "stripe");
-    vi.stubEnv("BILLING_TAX_MODE", "manual");
-    vi.stubEnv("STRIPE_SECRET_KEY", "stripe-secret-test-value");
-    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "");
-    vi.stubEnv("STRIPE_PRICE_STARTER", "price_starter");
-    vi.stubEnv("STRIPE_PRICE_GROWTH", "price_growth");
-    vi.stubEnv("STRIPE_PRICE_SCALE", "price_scale");
+    vi.stubEnv("BILLING_PROVIDER", "paddle");
+    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test-not-a-secret-value");
+    vi.stubEnv("PADDLE_WEBHOOK_SECRET", "");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "sandbox");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", paddleClientToken);
+    vi.stubEnv("PADDLE_PRICE_STARTER", paddlePriceStarter);
+    vi.stubEnv("PADDLE_PRICE_GROWTH", paddlePriceGrowth);
+    vi.stubEnv("PADDLE_PRICE_SCALE", paddlePriceScale);
     const { env } = await import("@/lib/server/env");
     expect(env.billingReady).toBe(false);
   });
 
   it("rejects duplicate price IDs that would make plan mapping ambiguous", async () => {
-    vi.stubEnv("BILLING_PROVIDER", "stripe");
-    vi.stubEnv("BILLING_TAX_MODE", "manual");
-    vi.stubEnv("STRIPE_SECRET_KEY", "stripe-secret-test-value");
-    vi.stubEnv(
-      "STRIPE_WEBHOOK_SECRET",
-      ["whsec", "test-not-a-secret-value"].join("_"),
-    );
-    vi.stubEnv("STRIPE_PRICE_STARTER", "price_duplicate");
-    vi.stubEnv("STRIPE_PRICE_GROWTH", "price_duplicate");
-    vi.stubEnv("STRIPE_PRICE_SCALE", "price_scale");
+    vi.stubEnv("BILLING_PROVIDER", "paddle");
+    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test-not-a-secret-value");
+    vi.stubEnv("PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test-not-a-secret-value");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "sandbox");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", paddleClientToken);
+    vi.stubEnv("PADDLE_PRICE_STARTER", paddlePriceStarter);
+    vi.stubEnv("PADDLE_PRICE_GROWTH", paddlePriceStarter);
+    vi.stubEnv("PADDLE_PRICE_SCALE", paddlePriceScale);
+    const { env } = await import("@/lib/server/env");
+    expect(env.billingReady).toBe(false);
+  });
+
+  it("rejects a malformed Paddle client token before checkout is enabled", async () => {
+    vi.stubEnv("BILLING_PROVIDER", "paddle");
+    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test-not-a-secret-value");
+    vi.stubEnv("PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test-not-a-secret-value");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "sandbox");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_too_short");
+    vi.stubEnv("PADDLE_PRICE_STARTER", paddlePriceStarter);
+    vi.stubEnv("PADDLE_PRICE_GROWTH", paddlePriceGrowth);
+    vi.stubEnv("PADDLE_PRICE_SCALE", paddlePriceScale);
     const { env } = await import("@/lib/server/env");
     expect(env.billingReady).toBe(false);
   });

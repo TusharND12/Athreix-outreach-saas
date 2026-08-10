@@ -48,8 +48,8 @@ export async function GET() {
         provider: env.billingReady ? env.billingProvider : null,
       },
       notice: env.billingReady
-        ? "Checkout and subscription management are handled by the configured payment provider."
-        : "Paid billing is fail-closed until provider, tax mode, webhook secret, and all price IDs are configured.",
+        ? "Checkout, tax calculation, and subscription management are handled by Paddle Sandbox."
+        : "Paid billing is fail-closed until Paddle Sandbox credentials, the signed webhook, client token, and all price IDs are configured.",
     });
   });
 }

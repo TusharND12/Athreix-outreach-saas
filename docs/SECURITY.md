@@ -18,7 +18,7 @@ The browser is untrusted. Every API revalidates identity, workspace membership, 
 - Workspace-scoped RBAC and separate platform-admin authorization
 - Verified-email plus platform-admin approval for new customer access; rejection/suspension checks at sign-in, JWT refresh, and request context; session-version rotation on every access-state mutation
 - Zod input validation, request-size limits, rate limiting, idempotency for job/export/checkout creation, and CSRF/origin protection for mutations
-- Stripe-hosted card collection; exact-path webhook CSRF exemption; raw-body signature verification; payload-digest replay protection; tenant/customer/subscription cross-checks; configured server-side Price mapping; stale-event protection; and one credit grant per subscription period
+- Paddle-hosted card collection in Sandbox; exact-path webhook CSRF exemption; raw-body signature verification; payload-digest replay protection; tenant/customer/subscription cross-checks; configured server-side Price mapping; stale-event protection; and one credit grant per completed subscription transaction
 - AES-256-GCM envelope format for sensitive fields with versioned keys and room for rotation
 - No secrets or decrypted contact values in queues, logs, URLs, analytics, or client-rendered server errors
 - Append-only credits ledger and audit events for admin, export, compliance, list, and outreach mutations
