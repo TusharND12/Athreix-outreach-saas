@@ -43,6 +43,19 @@ const industryAliases = new Map<string, string[]>([
   ["ecommerce", ["internet", "retail"]],
 ]);
 
+export function removeIndustryEquivalentKeywords(
+  values: string[],
+  industries: string[],
+) {
+  const industryTerms = new Set(
+    industries.flatMap((industry) => {
+      const key = normalized(industry);
+      return [key, ...(industryAliases.get(key) ?? []).map(normalized)];
+    }),
+  );
+  return values.filter((value) => !industryTerms.has(normalized(value)));
+}
+
 function containsIndustry(value: string | undefined, requested: string[]) {
   return requested.some((item) => {
     const key = normalized(item);

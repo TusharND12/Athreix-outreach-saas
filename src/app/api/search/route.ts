@@ -7,6 +7,7 @@ import { assertSearchCompliant } from "@/server/compliance";
 import { createSearchSchema, paginationSchema } from "@/server/schemas";
 import { createSearch, listSearches } from "@/server/search-service";
 import { interpretSearchBrief } from "@/server/ai";
+import { removeIndustryEquivalentKeywords } from "@/server/filtering";
 
 function mergeInterpretedFilters(
   explicit: Record<string, unknown>,
@@ -17,17 +18,30 @@ function mergeInterpretedFilters(
     const current = explicit[key];
     return Array.isArray(current) && current.length ? current : ai[key];
   };
+  const industries = preferArray("industries") as string[];
+  const keywords = preferArray("keywords") as string[];
+  const websiteKeywords =
+    Array.isArray(explicit.websiteKeywords) && explicit.websiteKeywords.length
+      ? (explicit.websiteKeywords as string[])
+      : ai.websiteSignals;
+  const linkedinKeywords = Array.isArray(explicit.linkedinKeywords)
+    ? (explicit.linkedinKeywords as string[])
+    : [];
   return {
     ...explicit,
-    industries: preferArray("industries"),
+    industries,
     locations: preferArray("locations"),
     jobTitles: preferArray("jobTitles"),
     technologies: preferArray("technologies"),
-    keywords: preferArray("keywords"),
-    websiteKeywords:
-      Array.isArray(explicit.websiteKeywords) && explicit.websiteKeywords.length
-        ? explicit.websiteKeywords
-        : ai.websiteSignals,
+    keywords: removeIndustryEquivalentKeywords(keywords, industries),
+    websiteKeywords: removeIndustryEquivalentKeywords(
+      websiteKeywords,
+      industries,
+    ),
+    linkedinKeywords: removeIndustryEquivalentKeywords(
+      linkedinKeywords,
+      industries,
+    ),
     employeeMin: explicit.employeeMin ?? ai.employeeMin ?? undefined,
     employeeMax: explicit.employeeMax ?? ai.employeeMax ?? undefined,
     isHiring: explicit.isHiring ?? ai.isHiring ?? undefined,

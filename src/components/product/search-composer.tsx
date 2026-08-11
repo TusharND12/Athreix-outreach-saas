@@ -563,8 +563,6 @@ export function SearchComposer({
             ? false
             : undefined,
       isHiring: form.hiring || undefined,
-      websiteKeywords: commaList(form.keywords),
-      linkedinKeywords: commaList(form.keywords),
       scoreThreshold: Number(form.score),
     };
     const fallback = { id: "demo-processing", meta: { demo: true } };

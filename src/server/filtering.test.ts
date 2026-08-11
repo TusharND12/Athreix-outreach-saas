@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { structuredFilterDecision } from "@/server/filtering";
+import {
+  removeIndustryEquivalentKeywords,
+  structuredFilterDecision,
+} from "@/server/filtering";
 import { normalizeProspect } from "@/server/normalize";
 import { scoreProspect } from "@/server/scoring";
 
@@ -89,5 +92,20 @@ describe("structured filter enforcement", () => {
     expect(
       structuredFilterDecision(healthcareFounder, { isHiring: true }),
     ).toMatchObject({ eligible: false, reasons: ["hiring"] });
+  });
+
+  it("does not duplicate an industry label as a hard keyword constraint", () => {
+    expect(
+      removeIndustryEquivalentKeywords(
+        ["healthcare", "patient engagement"],
+        ["Healthcare"],
+      ),
+    ).toEqual(["patient engagement"]);
+    expect(
+      removeIndustryEquivalentKeywords(
+        ["Hospital & Health Care", "medical devices"],
+        ["Healthcare"],
+      ),
+    ).toEqual(["medical devices"]);
   });
 });
