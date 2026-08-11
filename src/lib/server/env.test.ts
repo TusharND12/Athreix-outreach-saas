@@ -134,6 +134,69 @@ describe("provider configuration trust gates", () => {
     expect(lookup("workspace-a")).toBeDefined();
     expect(lookup("workspace-b")).toBeUndefined();
   });
+
+  it("requires a pinned, allowlisted, currently reviewed research Actor", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APIFY_API_TOKEN", "token");
+    vi.stubEnv("APIFY_ALLOWED_ACTORS", "apify/website-content-crawler");
+    vi.stubEnv("APIFY_TERMS_VERSION", "terms-2026-01");
+    vi.stubEnv(
+      "APIFY_ACTOR_REVIEWS_JSON",
+      JSON.stringify([
+        {
+          actorId: "apify/website-content-crawler",
+          creator: "Apify",
+          reviewedAt: "2026-01-01T00:00:00.000Z",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          termsVersion: "terms-2026-01",
+          reviewVersion: "review-1",
+          modes: ["B2B"],
+          jurisdictions: ["India"],
+          permissions: ["public_company_website_content"],
+          maxMemoryMbytes: 512,
+          timeoutSecs: 120,
+          maxTotalChargeUsd: 0.05,
+          approved: true,
+        },
+      ]),
+    );
+    vi.stubEnv(
+      "APIFY_RESEARCH_ACTORS_JSON",
+      JSON.stringify([
+        {
+          key: "website",
+          actorId: "apify/website-content-crawler",
+          build: "0.3.94",
+          resultLimit: 5,
+          retries: 0,
+          enabled: true,
+        },
+      ]),
+    );
+    const { env } = await import("@/lib/server/env");
+    expect(env.apifyResearchReady).toBe(true);
+    expect(env.researchActors).toMatchObject([
+      { actorId: "apify/website-content-crawler", build: "0.3.94" },
+    ]);
+  });
+
+  it("rejects an unpinned research Actor", async () => {
+    vi.stubEnv(
+      "APIFY_RESEARCH_ACTORS_JSON",
+      JSON.stringify([
+        {
+          key: "website",
+          actorId: "apify/website-content-crawler",
+          resultLimit: 5,
+          retries: 0,
+          enabled: true,
+        },
+      ]),
+    );
+    const { env } = await import("@/lib/server/env");
+    expect(env.researchActors).toEqual([]);
+    expect(env.apifyResearchReady).toBe(false);
+  });
 });
 
 describe("search runtime defaults", () => {

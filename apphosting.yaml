@@ -130,7 +130,7 @@ env:
       - RUNTIME
   # Operator-approved B2B scope. The provider uses these limits for every run.
   - variable: APIFY_ALLOWED_ACTORS
-    value: code_crafter/leads-finder
+    value: code_crafter/leads-finder,apify/website-content-crawler
     availability:
       - RUNTIME
   - variable: APIFY_TERMS_VERSION
@@ -140,7 +140,16 @@ env:
   - variable: APIFY_ACTOR_REVIEWS_JSON
     value: >-
       [{"actorId":"code_crafter/leads-finder","creator":"Code Pioneer
-      (code_crafter)","reviewedAt":"2026-08-11T00:00:00.000Z","expiresAt":"2027-08-11T00:00:00.000Z","termsVersion":"2026-08-01","reviewVersion":"athreix-b2b-india-v1","modes":["B2B"],"jurisdictions":["India"],"permissions":["professional_business_data"],"maxMemoryMbytes":1024,"timeoutSecs":300,"maxTotalChargeUsd":5,"approved":true}]
+      (code_crafter)","reviewedAt":"2026-08-11T00:00:00.000Z","expiresAt":"2027-08-11T00:00:00.000Z","termsVersion":"2026-08-01","reviewVersion":"athreix-b2b-india-v1","modes":["B2B"],"jurisdictions":["India"],"permissions":["professional_business_data"],"maxMemoryMbytes":1024,"timeoutSecs":300,"maxTotalChargeUsd":5,"approved":true},{"actorId":"apify/website-content-crawler","creator":"Apify","reviewedAt":"2026-08-11T00:00:00.000Z","expiresAt":"2027-02-11T00:00:00.000Z","termsVersion":"2026-08-01","reviewVersion":"athreix-staging-public-website-v1","modes":["B2B"],"jurisdictions":["India"],"permissions":["public_company_website_content"],"maxMemoryMbytes":512,"timeoutSecs":120,"maxTotalChargeUsd":0.05,"approved":true}]
+    availability:
+      - RUNTIME
+  - variable: APIFY_RESEARCH_ACTORS_JSON
+    value: >-
+      [{"key":"website","actorId":"apify/website-content-crawler","build":"0.3.94","input":{"startUrls":[{"url":"{{company.website}}"}],"crawlerType":"cheerio","maxCrawlDepth":1,"maxCrawlPages":5,"useSitemaps":false,"proxyConfiguration":{"useApifyProxy":true}},"resultLimit":5,"retries":0,"cacheTtlMinutes":1440,"enabled":true}]
+    availability:
+      - RUNTIME
+  - variable: APIFY_RESEARCH_COMPANY_LIMIT
+    value: "10"
     availability:
       - RUNTIME
   - variable: BILLING_PROVIDER

@@ -63,6 +63,7 @@ const envSchema = z.object({
   APIFY_B2C_SOURCES_JSON: z.string().optional(),
   APIFY_TERMS_VERSION: z.string().min(1).optional(),
   APIFY_RESEARCH_ACTORS_JSON: z.string().optional(),
+  APIFY_RESEARCH_COMPANY_LIMIT: boundedInteger(1, 100, 10),
   APIFY_RESEARCH_COMPANY_CONCURRENCY: boundedInteger(1, 10, 3),
   APIFY_RESEARCH_ACTOR_CONCURRENCY: boundedInteger(1, 20, 6),
   APIFY_RESEARCH_CACHE_TTL_MINUTES: boundedInteger(5, 10_080, 1_440),
@@ -174,6 +175,7 @@ export type ApifyResearchActor = {
     | "reviews"
     | "social";
   actorId: string;
+  build: string;
   queryTemplate?: string;
   input?: Record<string, unknown>;
   resultLimit: number;
@@ -262,6 +264,9 @@ function readResearchActors(value?: string): ApifyResearchActor[] {
               "social",
             ]),
             actorId: z.string().min(1).max(200),
+            build: z
+              .string()
+              .regex(/^\d+\.\d+\.\d+$/, "Actor build must be pinned"),
             queryTemplate: z.string().min(1).max(1_000).optional(),
             input: z.record(z.string(), z.unknown()).optional(),
             resultLimit: z.number().int().min(1).max(100).default(10),
@@ -402,6 +407,7 @@ const apifyResearchReady =
         actorAllowlist.has(actor.actorId) &&
         actorReviewAllows(review, {
           mode: "B2B",
+          jurisdiction: review?.jurisdictions[0],
           termsVersion: raw.APIFY_TERMS_VERSION,
         })
       );
