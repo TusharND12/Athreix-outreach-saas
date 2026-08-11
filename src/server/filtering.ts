@@ -24,6 +24,32 @@ function containsAny(value: string | undefined, requested: string[]) {
   );
 }
 
+// Match the broad operator-facing labels that are translated into provider
+// taxonomies before a run. Post-filtering must use the same semantics or a
+// provider-approved record can be rejected solely because its label differs.
+const industryAliases = new Map<string, string[]>([
+  ["saas", ["computer software"]],
+  ["software", ["computer software"]],
+  ["software startup", ["computer software"]],
+  ["architecture", ["architecture & planning"]],
+  ["manufacturing", ["mechanical or industrial engineering", "machinery"]],
+  ["manufacturer", ["mechanical or industrial engineering", "machinery"]],
+  ["industrial", ["mechanical or industrial engineering"]],
+  ["agency", ["marketing & advertising"]],
+  ["healthcare", ["hospital & health care", "health care"]],
+  ["health care", ["hospital & health care"]],
+  ["fintech", ["financial services"]],
+  ["e commerce", ["internet", "retail"]],
+  ["ecommerce", ["internet", "retail"]],
+]);
+
+function containsIndustry(value: string | undefined, requested: string[]) {
+  return requested.some((item) => {
+    const key = normalized(item);
+    return containsAny(value, [item, ...(industryAliases.get(key) ?? [])]);
+  });
+}
+
 function exact(value: string | undefined, requested: unknown) {
   return (
     typeof requested === "string" && normalized(value) === normalized(requested)
@@ -138,7 +164,7 @@ export function structuredFilterDecision(
     item.company.description,
     ...item.company.keywords,
   ].join(" ");
-  if (industries.length && !containsAny(item.company.industry, industries))
+  if (industries.length && !containsIndustry(item.company.industry, industries))
     reasons.push("industry");
   if (locations.length && !containsAny(companyLocation, locations))
     reasons.push("location");
@@ -217,10 +243,9 @@ export function structuredFilterDecision(
     !containsAny(item.company.fundingStage, fundingStages)
   )
     reasons.push("funding_stage");
-  if (
-    typeof filters.isHiring === "boolean" &&
-    item.company.isHiring !== filters.isHiring
-  )
+  // The product exposes hiring as a positive-only toggle. `false` means that
+  // no hiring constraint was requested; only `true` is a hard requirement.
+  if (filters.isHiring === true && item.company.isHiring !== true)
     reasons.push("hiring");
   if (websiteKeywords.length && !containsAny(companyText, websiteKeywords))
     reasons.push("website_keywords");

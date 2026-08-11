@@ -58,4 +58,30 @@ describe("structured filter enforcement", () => {
       technologyMatch: 10,
     });
   });
+
+  it("matches provider industry aliases and treats a false hiring toggle as unset", () => {
+    const healthcareFounder = normalizeProspect(
+      {
+        companyName: "Care Labs",
+        contactName: "Mira Shah",
+        title: "Founder",
+        industry: "Hospital & Health Care",
+      },
+      "B2B",
+      provenance,
+    );
+    if (!healthcareFounder || healthcareFounder.mode !== "B2B") {
+      throw new Error("normalization failed");
+    }
+
+    expect(
+      structuredFilterDecision(healthcareFounder, {
+        industries: ["Healthcare"],
+        isHiring: false,
+      }),
+    ).toEqual({ eligible: true, reasons: [] });
+    expect(
+      structuredFilterDecision(healthcareFounder, { isHiring: true }),
+    ).toMatchObject({ eligible: false, reasons: ["hiring"] });
+  });
 });

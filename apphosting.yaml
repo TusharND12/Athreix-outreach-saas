@@ -182,3 +182,19 @@ env:
     secret: OPENROUTER_API_KEY
     availability:
       - RUNTIME
+  - variable: OPENROUTER_MODEL
+    value: google/gemini-3.1-flash-lite
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_SCORING_MODEL
+    value: google/gemini-3.1-flash-lite
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_OUTREACH_MODEL
+    value: google/gemini-3.1-flash-lite
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_RESEARCH_MODEL
+    value: google/gemini-3.1-flash-lite
+    availability:
+      - RUNTIME

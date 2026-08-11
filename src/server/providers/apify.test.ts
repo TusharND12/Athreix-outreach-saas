@@ -200,7 +200,7 @@ describe("Code Crafter Leads Finder adapter", () => {
         company_website: "https://acme.example",
         company_domain: "acme.example",
         company_size: 42,
-        industry: "computer software",
+        company_industry: "computer software",
         company_city: "Bengaluru",
         company_country: "India",
         company_technologies: "TypeScript, PostgreSQL",
@@ -213,6 +213,7 @@ describe("Code Crafter Leads Finder adapter", () => {
       contactName: "Asha Rao",
       email: "asha@acme.example",
       employeeCount: 42,
+      industry: "computer software",
       technologies: ["TypeScript", "PostgreSQL"],
       _athreixLeadFields: {
         first_name: "Asha",
