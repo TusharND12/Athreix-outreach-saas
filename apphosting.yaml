@@ -139,7 +139,8 @@ env:
       - RUNTIME
   - variable: APIFY_ACTOR_REVIEWS_JSON
     value: >-
-      [{"actorId":"code_crafter/leads-finder","creator":"Code Pioneer (code_crafter)","reviewedAt":"2026-08-11T00:00:00.000Z","expiresAt":"2027-08-11T00:00:00.000Z","termsVersion":"2026-08-01","reviewVersion":"athreix-b2b-india-v1","modes":["B2B"],"jurisdictions":["India"],"permissions":["professional_business_data"],"maxMemoryMbytes":1024,"timeoutSecs":300,"maxTotalChargeUsd":5,"approved":true}]
+      [{"actorId":"code_crafter/leads-finder","creator":"Code Pioneer
+      (code_crafter)","reviewedAt":"2026-08-11T00:00:00.000Z","expiresAt":"2027-08-11T00:00:00.000Z","termsVersion":"2026-08-01","reviewVersion":"athreix-b2b-india-v1","modes":["B2B"],"jurisdictions":["India"],"permissions":["professional_business_data"],"maxMemoryMbytes":1024,"timeoutSecs":300,"maxTotalChargeUsd":5,"approved":true}]
     availability:
       - RUNTIME
   - variable: BILLING_PROVIDER
@@ -176,4 +177,8 @@ env:
     value: test_1aa98c099061ca7e7d3379fd2c5
     availability:
       - BUILD
+      - RUNTIME
+  - variable: OPENROUTER_API_KEY
+    secret: OPENROUTER_API_KEY
+    availability:
       - RUNTIME
