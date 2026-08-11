@@ -299,5 +299,10 @@ export function explicitFilterRatios(
 }
 
 function industriesRatio(value: string | undefined, requested: string[]) {
-  return explicitTextRatio(value ? [value] : [], requested);
+  if (!requested.length) return null;
+  if (!value) return 0;
+  return (
+    requested.filter((item) => containsIndustry(value, [item])).length /
+    requested.length
+  );
 }

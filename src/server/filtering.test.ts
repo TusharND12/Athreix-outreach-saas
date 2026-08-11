@@ -81,6 +81,12 @@ describe("structured filter enforcement", () => {
       }),
     ).toEqual({ eligible: true, reasons: [] });
     expect(
+      scoreProspect(healthcareFounder, {
+        query: "founder in health care",
+        filters: { industries: ["Healthcare"] },
+      }).breakdown.industryMatch,
+    ).toBe(14);
+    expect(
       structuredFilterDecision(healthcareFounder, { isHiring: true }),
     ).toMatchObject({ eligible: false, reasons: ["hiring"] });
   });
