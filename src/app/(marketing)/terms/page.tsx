@@ -214,7 +214,7 @@ const sections: LegalSection[] = [
         </p>
         <p>
           Questions about these terms or the Service can be sent to{" "}
-          <a href="mailto:umerkhan@athreix.com">umerkhan@athreix.com</a>.
+          <a href="mailto:tech@athreix.com">tech@athreix.com</a>.
         </p>
       </>
     ),

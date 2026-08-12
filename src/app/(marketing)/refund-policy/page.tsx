@@ -88,10 +88,10 @@ const sections: LegalSection[] = [
         <p>
           If a persistent technical issue or material defect prevents access to
           the paid Service, contact{" "}
-          <a href="mailto:umerkhan@athreix.com">umerkhan@athreix.com</a> first
-          so we can investigate, restore access, or document the problem for
-          Paddle. Include the account email, approximate time, affected feature,
-          and any non-sensitive error message.
+          <a href="mailto:tech@athreix.com">tech@athreix.com</a> first so we can
+          investigate, restore access, or document the problem for Paddle.
+          Include the account email, approximate time, affected feature, and any
+          non-sensitive error message.
         </p>
         <p>
           If the issue cannot be resolved, submit the refund request to Paddle
@@ -134,7 +134,7 @@ const sections: LegalSection[] = [
         method, sales-tax exemption, or tax-refund question, contact Paddle at{" "}
         <a href="https://paddle.net">paddle.net</a>. For questions about Athreix
         access or plan delivery, email{" "}
-        <a href="mailto:umerkhan@athreix.com">umerkhan@athreix.com</a>.
+        <a href="mailto:tech@athreix.com">tech@athreix.com</a>.
       </p>
     ),
   },

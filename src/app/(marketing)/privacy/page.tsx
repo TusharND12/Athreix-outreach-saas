@@ -202,11 +202,11 @@ const sections: LegalSection[] = [
         </p>
         <p>
           Send a request to{" "}
-          <a href="mailto:umerkhan@athreix.com">umerkhan@athreix.com</a> or
-          contact the relevant workspace owner. We may request proportionate
-          information to verify the request and will not ask for unnecessary
-          identity documents by ordinary email. You may also complain to your
-          local data protection authority.
+          <a href="mailto:tech@athreix.com">tech@athreix.com</a> or contact the
+          relevant workspace owner. We may request proportionate information to
+          verify the request and will not ask for unnecessary identity documents
+          by ordinary email. You may also complain to your local data protection
+          authority.
         </p>
       </>
     ),
@@ -225,7 +225,7 @@ const sections: LegalSection[] = [
           We may update this notice as the Service, providers, or law changes.
           Material updates will show a new effective date and will be
           communicated where required. Privacy questions may be sent to{" "}
-          <a href="mailto:umerkhan@athreix.com">umerkhan@athreix.com</a>.
+          <a href="mailto:tech@athreix.com">tech@athreix.com</a>.
         </p>
       </>
     ),

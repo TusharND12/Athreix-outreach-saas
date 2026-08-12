@@ -149,8 +149,8 @@ const sections: LegalSection[] = [
         </p>
         <p>
           Report suspected misuse to{" "}
-          <a href="mailto:umerkhan@athreix.com">umerkhan@athreix.com</a>. We may
-          update this policy as source configurations, supported regions, and
+          <a href="mailto:tech@athreix.com">tech@athreix.com</a>. We may update
+          this policy as source configurations, supported regions, and
           regulatory obligations change.
         </p>
       </>
