@@ -18,6 +18,7 @@ const footerGroups = [
       ["Responsible use", "/responsible-use"],
       ["Privacy", "/privacy"],
       ["Terms", "/terms"],
+      ["Refund policy", "/refund-policy"],
     ],
   },
 ] as const;

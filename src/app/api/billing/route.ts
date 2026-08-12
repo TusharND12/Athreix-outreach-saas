@@ -28,28 +28,40 @@ export async function GET() {
         cancelAtPeriodEnd: true,
         provider: true,
         externalCustomerId: true,
+        externalSubscriptionId: true,
+        externalPriceId: true,
       },
     });
+    const subscriptionMatchesEnvironment = Boolean(
+      subscription &&
+      (!subscription.externalCustomerId && !subscription.externalSubscriptionId
+        ? true
+        : !subscription.externalPriceId ||
+          Object.values(env.billingPriceIds).includes(
+            subscription.externalPriceId,
+          )),
+    );
     return apiSuccess({
-      subscription: subscription
-        ? {
-            plan: subscription.plan,
-            status: subscription.status,
-            currentPeriodStart: subscription.currentPeriodStart,
-            currentPeriodEnd: subscription.currentPeriodEnd,
-            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-            provider: subscription.provider,
-            managed: Boolean(subscription.externalCustomerId),
-          }
-        : null,
+      subscription:
+        subscription && subscriptionMatchesEnvironment
+          ? {
+              plan: subscription.plan,
+              status: subscription.status,
+              currentPeriodStart: subscription.currentPeriodStart,
+              currentPeriodEnd: subscription.currentPeriodEnd,
+              cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+              provider: subscription.provider,
+              managed: Boolean(subscription.externalCustomerId),
+            }
+          : null,
       plans: billingPlans,
       billing: {
         ready: env.billingReady,
         provider: env.billingReady ? env.billingProvider : null,
       },
       notice: env.billingReady
-        ? "Checkout, tax calculation, and subscription management are handled by Paddle Sandbox."
-        : "Paid billing is fail-closed until Paddle Sandbox credentials, the signed webhook, client token, and all price IDs are configured.",
+        ? `Checkout, tax calculation, and subscription management are handled by Paddle ${env.NEXT_PUBLIC_PADDLE_ENV === "production" ? "Live" : "Sandbox"}.`
+        : "Paid billing is fail-closed until environment-matched Paddle credentials, the signed webhook, client token, and all price IDs are configured.",
     });
   });
 }

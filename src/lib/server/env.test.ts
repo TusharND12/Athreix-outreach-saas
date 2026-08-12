@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const paddleClientToken = `test_${"a".repeat(27)}`;
+const paddleLiveClientToken = `live_${"a".repeat(27)}`;
 const paddlePriceStarter = `pri_${"a".repeat(26)}`;
 const paddlePriceGrowth = `pri_${"b".repeat(26)}`;
 const paddlePriceScale = `pri_${"c".repeat(26)}`;
@@ -257,6 +258,32 @@ describe("billing readiness", () => {
     vi.stubEnv("PADDLE_PRICE_SCALE", paddlePriceScale);
     const { env } = await import("@/lib/server/env");
     expect(env.billingReady).toBe(true);
+  });
+
+  it("accepts matching Paddle Live credentials for production checkout", async () => {
+    vi.stubEnv("BILLING_PROVIDER", "paddle");
+    vi.stubEnv("PADDLE_API_KEY", "pdl_live_apikey_test-not-a-secret-value");
+    vi.stubEnv("PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test-not-a-secret-value");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", paddleLiveClientToken);
+    vi.stubEnv("PADDLE_PRICE_STARTER", paddlePriceStarter);
+    vi.stubEnv("PADDLE_PRICE_GROWTH", paddlePriceGrowth);
+    vi.stubEnv("PADDLE_PRICE_SCALE", paddlePriceScale);
+    const { env } = await import("@/lib/server/env");
+    expect(env.billingReady).toBe(true);
+  });
+
+  it("rejects credentials from a different Paddle environment", async () => {
+    vi.stubEnv("BILLING_PROVIDER", "paddle");
+    vi.stubEnv("PADDLE_API_KEY", "pdl_live_apikey_test-not-a-secret-value");
+    vi.stubEnv("PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test-not-a-secret-value");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_ENV", "sandbox");
+    vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", paddleClientToken);
+    vi.stubEnv("PADDLE_PRICE_STARTER", paddlePriceStarter);
+    vi.stubEnv("PADDLE_PRICE_GROWTH", paddlePriceGrowth);
+    vi.stubEnv("PADDLE_PRICE_SCALE", paddlePriceScale);
+    const { env } = await import("@/lib/server/env");
+    expect(env.billingReady).toBe(false);
   });
 
   it("keeps billing fail-closed when webhook verification is missing", async () => {

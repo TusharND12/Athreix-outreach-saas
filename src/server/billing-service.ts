@@ -248,6 +248,28 @@ export function mapSubscriptionStatus(
   return undefined;
 }
 
+function subscriptionMatchesConfiguredCatalog(
+  subscription?: {
+    externalCustomerId?: string | null;
+    externalSubscriptionId?: string | null;
+    externalPriceId?: string | null;
+  } | null,
+) {
+  if (
+    !subscription?.externalCustomerId &&
+    !subscription?.externalSubscriptionId
+  ) {
+    return true;
+  }
+  // Legacy managed rows may predate price tracking. Keep those fail-closed;
+  // otherwise, only reuse provider identifiers from the configured Paddle
+  // environment. Sandbox and Live IDs are not interchangeable.
+  return (
+    !subscription.externalPriceId ||
+    Boolean(billingPlanForPrice(subscription.externalPriceId))
+  );
+}
+
 export function monthlyEntitlementIsAllowed(input: {
   externalInvoiceId?: string;
   subscriptionStatus?: InternalSubscriptionStatus;
@@ -403,13 +425,16 @@ export async function applyBillingEvent(
           );
         }
 
+        const fallbackSubscription = await tx.subscription.findFirst({
+          where: { workspaceId },
+          orderBy: { createdAt: "desc" },
+        });
         const localSubscription =
           bySubscription ??
           byCustomer ??
-          (await tx.subscription.findFirst({
-            where: { workspaceId },
-            orderBy: { createdAt: "desc" },
-          }));
+          (subscriptionMatchesConfiguredCatalog(fallbackSubscription)
+            ? fallbackSubscription
+            : undefined);
         if (
           localSubscription?.externalSubscriptionId &&
           localSubscription.externalSubscriptionId !==
@@ -581,6 +606,7 @@ export async function createCheckout(input: {
     );
   }
   if (
+    subscriptionMatchesConfiguredCatalog(subscription) &&
     subscription?.externalSubscriptionId &&
     subscription.status !== "CANCELLED"
   ) {
@@ -598,9 +624,11 @@ export async function createCheckout(input: {
   return {
     sessionId,
     priceId: selectedPlan.priceId,
-    customer: subscription?.externalCustomerId
-      ? { id: subscription.externalCustomerId }
-      : { email: user.email },
+    customer:
+      subscriptionMatchesConfiguredCatalog(subscription) &&
+      subscription?.externalCustomerId
+        ? { id: subscription.externalCustomerId }
+        : { email: user.email },
     customData: {
       athreix_workspace_id: input.workspaceId,
       athreix_plan: input.plan,
@@ -620,7 +648,10 @@ export async function createCustomerPortal(workspaceId: string) {
     where: { workspaceId },
     orderBy: { createdAt: "desc" },
   });
-  if (!subscription?.externalCustomerId) {
+  if (
+    !subscriptionMatchesConfiguredCatalog(subscription) ||
+    !subscription?.externalCustomerId
+  ) {
     throw new AppError(
       "BILLING_CUSTOMER_NOT_FOUND",
       "This workspace does not have a managed billing account yet.",
@@ -650,6 +681,7 @@ export async function cancelSubscription(workspaceId: string) {
     orderBy: { createdAt: "desc" },
   });
   if (
+    !subscriptionMatchesConfiguredCatalog(subscription) ||
     !subscription?.externalSubscriptionId ||
     !subscription.externalCustomerId ||
     subscription.status === "CANCELLED"

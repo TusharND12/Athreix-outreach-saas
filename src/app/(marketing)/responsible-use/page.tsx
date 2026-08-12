@@ -8,7 +8,7 @@ import {
 export const metadata: Metadata = {
   title: "Responsible Use",
   description:
-    "The pre-launch responsible-use principles and prohibited uses for Athreix Prospect AI.",
+    "The responsible-use requirements and prohibited uses for Athreix Prospect AI.",
 };
 
 const sections: LegalSection[] = [
@@ -149,9 +149,9 @@ const sections: LegalSection[] = [
         </p>
         <p>
           Report suspected misuse to{" "}
-          <a href="mailto:trust@athreix.ai">trust@athreix.ai</a>. This draft
-          will be updated as source configurations, launch regions, and
-          regulatory obligations are finalized.
+          <a href="mailto:umerkhan@athreix.com">umerkhan@athreix.com</a>. We may
+          update this policy as source configurations, supported regions, and
+          regulatory obligations change.
         </p>
       </>
     ),

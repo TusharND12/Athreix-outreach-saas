@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 export interface LegalSection {
   title: string;
@@ -10,10 +10,12 @@ export function LegalPage({
   title,
   summary,
   sections,
+  effectiveDate = "11 August 2026",
 }: {
   title: string;
   summary: string;
   sections: LegalSection[];
+  effectiveDate?: string;
 }) {
   return (
     <main className="bg-background">
@@ -33,27 +35,14 @@ export function LegalPage({
             {summary}
           </p>
           <p className="mt-7 font-mono text-xs text-white/50">
-            Draft updated 20 July 2026
+            Effective {effectiveDate}
           </p>
         </div>
       </header>
 
       <div className="container-shell grid gap-12 py-12 sm:py-16 lg:grid-cols-[15rem_1fr] lg:gap-20 lg:py-20">
         <aside className="lg:sticky lg:top-28 lg:self-start">
-          <div className="rounded-2xl border border-[oklch(0.78_0.09_78)] bg-[oklch(0.95_0.05_78)] p-4 text-[oklch(0.34_0.08_78)] shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <AlertTriangle aria-hidden="true" className="size-4" /> Pre-launch
-              template
-            </div>
-            <p className="mt-2 text-xs leading-5">
-              This draft is for product transparency and must be reviewed by
-              qualified legal counsel before launch. It is not legal advice.
-            </p>
-          </div>
-          <nav
-            className="mt-7 hidden lg:block"
-            aria-label={`${title} contents`}
-          >
+          <nav className="hidden lg:block" aria-label={`${title} contents`}>
             <p className="text-xs font-semibold text-muted-foreground">
               On this page
             </p>

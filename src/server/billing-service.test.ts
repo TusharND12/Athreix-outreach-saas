@@ -21,6 +21,7 @@ const paddleClientToken = `test_${"a".repeat(27)}`;
 const paddlePriceStarter = `pri_${"a".repeat(26)}`;
 const paddlePriceGrowth = `pri_${"b".repeat(26)}`;
 const paddlePriceScale = `pri_${"c".repeat(26)}`;
+const paddleForeignEnvironmentPrice = `pri_${"d".repeat(26)}`;
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -136,6 +137,61 @@ describe("billing event entitlement safety", () => {
         data: expect.objectContaining({ outcome: "PROCESSED" }),
       }),
     );
+  });
+
+  it("creates a separate subscription when an older managed row belongs to another Paddle environment", async () => {
+    configureBilling();
+    const subscriptionCreate = vi.fn().mockResolvedValue({});
+    const subscriptionUpdate = vi.fn().mockResolvedValue({});
+    const tx = {
+      billingEvent: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({}),
+      },
+      subscription: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue({
+          id: "foreign-subscription",
+          workspaceId: "workspace-a",
+          externalCustomerId: "ctm_foreign",
+          externalSubscriptionId: "sub_foreign",
+          externalPriceId: paddleForeignEnvironmentPrice,
+          status: "ACTIVE",
+          lastProviderEventAt: null,
+        }),
+        update: subscriptionUpdate,
+        create: subscriptionCreate,
+      },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({ id: "workspace-a" }),
+        update: vi.fn().mockResolvedValue({ creditBalance: 750 }),
+      },
+      creditLedger: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({}),
+      },
+    };
+    const database = {
+      billingEvent: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn(
+        async (callback: (client: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    } as unknown as PrismaClient;
+
+    const { applyBillingEvent } = await import("@/server/billing-service");
+    await applyBillingEvent(paidGrowthEvent(), database);
+
+    expect(subscriptionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          workspaceId: "workspace-a",
+          externalSubscriptionId: "sub_a",
+          externalPriceId: paddlePriceGrowth,
+        }),
+      }),
+    );
+    expect(subscriptionUpdate).not.toHaveBeenCalled();
   });
 
   it("returns a recorded event replay without touching entitlement state", async () => {
@@ -436,6 +492,30 @@ describe("Paddle billing actions", () => {
         idempotencyKey: "request-123",
       }),
     ).rejects.toMatchObject({ code: "SUBSCRIPTION_EXISTS", status: 409 });
+  });
+
+  it("does not send managed customer IDs from another Paddle environment to checkout", async () => {
+    configureBilling();
+    mocks.userFindUnique.mockResolvedValue({ email: "owner@example.com" });
+    mocks.subscriptionFindFirst.mockResolvedValue({
+      externalCustomerId: "ctm_foreign",
+      externalSubscriptionId: "sub_foreign",
+      externalPriceId: paddleForeignEnvironmentPrice,
+      status: "ACTIVE",
+    });
+    const { createCheckout } = await import("@/server/billing-service");
+
+    await expect(
+      createCheckout({
+        workspaceId: "workspace-a",
+        userId: "user-a",
+        plan: "STARTER",
+        idempotencyKey: "request-123",
+      }),
+    ).resolves.toMatchObject({
+      priceId: paddlePriceStarter,
+      customer: { email: "owner@example.com" },
+    });
   });
 
   it("creates a short-lived Paddle portal session for the mapped customer", async () => {

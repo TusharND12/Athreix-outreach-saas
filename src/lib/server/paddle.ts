@@ -14,7 +14,10 @@ export function getPaddle() {
     throw new Error("PADDLE_API_KEY is not configured");
   }
   paddle ??= new Paddle(env.PADDLE_API_KEY, {
-    environment: Environment.sandbox,
+    environment:
+      env.NEXT_PUBLIC_PADDLE_ENV === "production"
+        ? Environment.production
+        : Environment.sandbox,
     logLevel: LogLevel.error,
   });
   return paddle;

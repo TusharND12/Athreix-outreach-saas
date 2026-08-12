@@ -89,14 +89,16 @@ const envSchema = z.object({
   EMAIL_SERVER: z.string().optional(),
   EMAIL_FROM: optionalEmail,
   BILLING_PROVIDER: z.enum(["paddle"]).optional(),
-  PADDLE_API_KEY: optionalPrefix("pdl_sdbx_apikey_"),
+  PADDLE_API_KEY: optionalPattern(/^pdl_(?:sdbx|live)_apikey_/),
   PADDLE_SANDBOX_API_KEY: optionalPrefix("pdl_sdbx_apikey_"),
   PADDLE_WEBHOOK_SECRET: optionalPrefix("pdl_ntfset_"),
   PADDLE_PRICE_STARTER: optionalPattern(/^pri_[a-z\d]{26}$/),
   PADDLE_PRICE_GROWTH: optionalPattern(/^pri_[a-z\d]{26}$/),
   PADDLE_PRICE_SCALE: optionalPattern(/^pri_[a-z\d]{26}$/),
-  NEXT_PUBLIC_PADDLE_ENV: z.enum(["sandbox"]).optional(),
-  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: optionalPattern(/^test_[A-Za-z\d]{27}$/),
+  NEXT_PUBLIC_PADDLE_ENV: z.enum(["sandbox", "production"]).optional(),
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: optionalPattern(
+    /^(?:test|live)_[A-Za-z\d]{27}$/,
+  ),
   PASSWORD_RESET_TTL_MINUTES: z.preprocess(
     emptyAsUndefined,
     z.coerce.number().int().min(5).max(120).default(30),
@@ -107,8 +109,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_DEMO_MODE: z.enum(["true", "false"]).optional(),
   LIVE_DATA_ONLY: z.enum(["true", "false"]).optional(),
   NEXT_PUBLIC_LIVE_DATA_ONLY: z.enum(["true", "false"]).optional(),
-  TERMS_VERSION: z.string().min(1).default("2026-07-20"),
-  RESPONSIBLE_USE_VERSION: z.string().min(1).default("2026-07-20"),
+  TERMS_VERSION: z.string().min(1).default("2026-08-11"),
+  RESPONSIBLE_USE_VERSION: z.string().min(1).default("2026-08-11"),
   ADMIN_EMAILS: z.string().optional(),
 });
 
@@ -433,12 +435,21 @@ const configuredBillingPriceIds = Object.values(billingPriceIds).filter(
   (priceId): priceId is string => Boolean(priceId),
 );
 const paddleApiKey = raw.PADDLE_API_KEY ?? raw.PADDLE_SANDBOX_API_KEY;
+const paddleCredentialsMatchEnvironment = Boolean(
+  raw.NEXT_PUBLIC_PADDLE_ENV === "sandbox"
+    ? paddleApiKey?.startsWith("pdl_sdbx_apikey_") &&
+        raw.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.startsWith("test_")
+    : raw.NEXT_PUBLIC_PADDLE_ENV === "production"
+      ? paddleApiKey?.startsWith("pdl_live_apikey_") &&
+        raw.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.startsWith("live_")
+      : false,
+);
 const billingReady = Boolean(
   raw.BILLING_PROVIDER === "paddle" &&
   paddleApiKey &&
   raw.PADDLE_WEBHOOK_SECRET &&
-  raw.NEXT_PUBLIC_PADDLE_ENV === "sandbox" &&
   raw.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN &&
+  paddleCredentialsMatchEnvironment &&
   configuredBillingPriceIds.length === 3 &&
   new Set(configuredBillingPriceIds).size === 3,
 );
