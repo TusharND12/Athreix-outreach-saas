@@ -8,6 +8,7 @@ import { CheckCircle2, Mail, RefreshCw, TriangleAlert } from "lucide-react";
 import { z } from "zod";
 
 import { FormField, PasswordField } from "@/components/auth/form-field";
+import { DataProcessingConsent } from "@/components/auth/data-processing-consent";
 import { OAuthSection } from "@/components/auth/oauth-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,12 @@ const schema = z.object({
       (value) => value,
       "Accept the Terms and Responsible Use Policy to continue.",
     ),
+  privacyConsent: z
+    .boolean()
+    .refine(
+      (value) => value,
+      "Give data-processing consent to create or access an account.",
+    ),
 });
 
 type SignupValues = z.infer<typeof schema>;
@@ -40,10 +47,12 @@ type SignupValues = z.infer<typeof schema>;
 export function SignupForm({
   termsVersion,
   responsibleUseVersion,
+  privacyNoticeVersion,
   demoMode = false,
 }: {
   termsVersion: string;
   responsibleUseVersion: string;
+  privacyNoticeVersion: string;
   demoMode?: boolean;
 }) {
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -55,17 +64,55 @@ export function SignupForm({
   const [resending, setResending] = React.useState(false);
   const [resendMessage, setResendMessage] = React.useState<string | null>(null);
   const [resendError, setResendError] = React.useState<string | null>(null);
+  const verificationPassword = React.useRef("");
   const {
     register,
     handleSubmit,
     setValue,
+    trigger,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<SignupValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", email: "", password: "", accepted: false },
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      accepted: false,
+      privacyConsent: false,
+    },
   });
   const accepted = watch("accepted");
+  const privacyConsent = watch("privacyConsent");
+
+  const prepareGoogleConsent = async () => {
+    setFormError(null);
+    if (!(await trigger("privacyConsent"))) return false;
+    try {
+      const response = await fetch("/api/auth/privacy-consent-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          noticeVersion: privacyNoticeVersion,
+          accepted: true,
+        }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        setFormError(
+          payload?.error?.message ??
+            "Data-processing consent could not be recorded. Try again.",
+        );
+        return false;
+      }
+      return true;
+    } catch {
+      setFormError("Data-processing consent could not be recorded. Try again.");
+      return false;
+    }
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
@@ -80,6 +127,10 @@ export function SignupForm({
           legalAcceptance: {
             termsVersion,
             responsibleUseVersion,
+            accepted: true,
+          },
+          privacyConsent: {
+            noticeVersion: privacyNoticeVersion,
             accepted: true,
           },
         }),
@@ -111,6 +162,7 @@ export function SignupForm({
           payload?.data?.verification?.deliveryStatus ??
           (demoMode ? "demo" : "sent"),
       });
+      verificationPassword.current = values.password;
     } catch {
       setFormError(
         "Account creation is temporarily unavailable. Please try again in a moment.",
@@ -127,7 +179,10 @@ export function SignupForm({
       const response = await fetch("/api/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: created.email }),
+        body: JSON.stringify({
+          email: created.email,
+          password: verificationPassword.current,
+        }),
       });
       const payload = (await response.json().catch(() => null)) as {
         data?: {
@@ -204,8 +259,8 @@ export function SignupForm({
               {demoMode
                 ? "Demo signups are not persisted. Continue with the preconfigured demo account to explore the workspace."
                 : deliveryPending
-                  ? `We could not deliver the verification email to ${created.email}. Your account and starter credits remain inactive until you verify it.`
-                  : `We sent a verification link to ${created.email}. Your starter credits activate after verification.`}
+                  ? `We could not deliver the verification email to ${created.email}. Your account remains inactive until email verification and platform approval are complete.`
+                  : `We sent a verification link to ${created.email}. After verification, a platform administrator will review the account before workspace access is enabled.`}
             </AlertDescription>
           </div>
         </Alert>
@@ -259,8 +314,18 @@ export function SignupForm({
 
   return (
     <>
+      <DataProcessingConsent
+        id="signup-privacy-consent"
+        checked={privacyConsent}
+        noticeVersion={privacyNoticeVersion}
+        error={errors.privacyConsent?.message}
+        onCheckedChange={(checked) =>
+          setValue("privacyConsent", checked, { shouldValidate: true })
+        }
+      />
       <OAuthSection
         label="Sign up with Google"
+        onBeforeSignIn={prepareGoogleConsent}
         consentNotice={
           <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
             By continuing with Google, you agree to the{" "}

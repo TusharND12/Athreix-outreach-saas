@@ -2,6 +2,8 @@
 
 Athreix exposes same-origin application APIs under `/api`. They are intended for the web application and a trusted worker, not as a public third-party API. Authenticated routes use the Auth.js session cookie; mutating requests are origin checked, JSON bodies are size limited, and service methods repeat workspace and role checks.
 
+The initial customer launch is B2B-only. The internal contract still documents dormant B2C controls so they cannot be mistaken for an ungoverned future path, but production must leave B2C provider/source configuration disabled until a separate launch review is complete.
+
 ## Response conventions
 
 Most successful JSON responses use this envelope:
@@ -91,18 +93,29 @@ Export requests require `acknowledgeLawfulUse: true` and exactly one `searchId` 
 
 ## Workspace and governance APIs
 
-| Routes                                         | Access                    | Notes                                                                                                                         |
-| ---------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `/api/dashboard`, `/api/usage`, `/api/billing` | Viewer                    | Current metrics, append-only credit activity, and plan metadata. Payment checkout is intentionally unavailable.               |
-| `/api/profile`                                 | Viewer                    | Read/update supported personal profile fields.                                                                                |
-| `/api/settings`                                | Viewer read; admin write  | Workspace defaults, sender identity, timezone, tone, and retention.                                                           |
-| `/api/notifications`                           | Viewer                    | List and mark the current user's notifications read.                                                                          |
-| `/api/suppressions`                            | Admin                     | Add/list hashed channel suppression entries; deletion requests erase matched canonical records.                               |
-| `/api/privacy/requests`                        | Member submit; admin list | Encrypted data-rights request intake. Resolution is a verified operational workflow until an admin resolution API is shipped. |
-| `/api/admin/*`                                 | Platform admin            | Aggregate health, users, jobs, searches, errors, logs, analytics, and idempotent credit adjustment.                           |
+| Routes                                             | Access                    | Notes                                                                                                                                                                 |
+| -------------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/dashboard`, `/api/usage`, `GET /api/billing` | Viewer                    | Current metrics, append-only credit activity, safe subscription state, and plan metadata.                                                                             |
+| `POST /api/billing/checkout`                       | Owner                     | Authorize Paddle Sandbox overlay checkout for a server-mapped plan Price and workspace/customer metadata.                                                             |
+| `POST /api/billing/portal`                         | Owner                     | Create a one-time, short-lived Paddle Customer Portal session for the workspace's mapped billing customer.                                                            |
+| `POST /api/billing/cancel`                         | Owner                     | Schedule the workspace's Paddle subscription to cancel at the end of the current billing period.                                                                      |
+| `POST /api/billing/webhook`                        | Paddle signature          | Verify the exact raw request and transactionally reconcile idempotent subscription and completed-transaction entitlement events.                                      |
+| `/api/profile`                                     | Viewer                    | Read/update supported personal profile fields.                                                                                                                        |
+| `POST /api/profile/sessions/revoke`                | Viewer                    | Rotate the user's session version so every existing session is rejected on its next authenticated request.                                                            |
+| `/api/settings`                                    | Viewer read; admin write  | Workspace defaults, sender identity, timezone, tone, and retention.                                                                                                   |
+| `/api/notifications`                               | Viewer                    | List and mark the current user's notifications read.                                                                                                                  |
+| `/api/suppressions`                                | Admin                     | Add/list hashed channel suppression entries; deletion requests erase matched canonical records.                                                                       |
+| `/api/privacy/requests`                            | Viewer submit; admin list | Encrypted, duplicate-safe data-rights request intake and workspace request history.                                                                                   |
+| `GET /api/admin`, `/api/admin/health`              | Platform admin            | Aggregate customer/usage metrics and secret-free dependency readiness.                                                                                                |
+| `GET`, `PATCH /api/admin/users`                    | Platform admin            | Search customers and approve, reject, suspend, or restore access. Verified email is required for approval; every mutation is audited and rotates the session version. |
+| `POST /api/admin/credits`                          | Platform admin            | Idempotent, reason-required workspace credit adjustment backed by the append-only ledger.                                                                             |
+| `GET`, `PATCH /api/admin/privacy`                  | Platform admin            | List requests, audit every encrypted identity reveal, and record encrypted resolution/evidence metadata.                                                              |
+| `/api/admin/jobs`, `/searches`, `/errors`, `/logs` | Platform admin            | Restricted worker/search failure visibility and audit history for the `/admin` operations portal.                                                                     |
+
+`GET /api/internal/monitoring` requires the retention/cron bearer secret and returns HTTP 503 when recent failures, stale jobs, past-due subscriptions, overdue privacy requests, or provider cleanup more than 26 hours past retention require operator attention. The response contains counts only, never prospect payloads.
 
 ## Authentication and operations
 
-Credential signup is `POST /api/auth/register` and requires the current terms/responsible-use versions. New password accounts must verify their email via `/api/auth/verify-email`; `/api/auth/resend-verification`, forgot-password, and single-use reset-password routes are rate limited. OAuth and session handling are owned by Auth.js at `/api/auth/*`.
+Credential signup is `POST /api/auth/register` and requires the current terms/responsible-use versions. New password accounts must verify their email via `/api/auth/verify-email`, then receive platform-admin approval before a session is accepted. New OAuth customers enter the same pending-approval state; allowlisted platform administrators bootstrap as approved. Accounts created before this gate are grandfathered to avoid an unsafe rollout lockout. Approval, rejection, suspension, and restoration are enforced at sign-in, JWT refresh, and request-context boundaries. `/api/auth/resend-verification`, forgot-password, and single-use reset-password routes are rate limited. OAuth and session handling are owned by Auth.js at `/api/auth/*`.
 
-`GET /api/health` is a public, secret-free readiness response. A live production instance reports ready only when authentication, database, encryption, Redis, reviewed Apify discovery and research Actors, OpenRouter, and export storage are configured and reachable as applicable. `GET /api/internal/retention` requires `Authorization: Bearer $CRON_SECRET` (or `X-Cron-Secret`) and is intended only for the configured scheduler.
+`GET /api/health` is a public, secret-free readiness response. A live production instance reports ready only when the environment schema, password authentication client/server configuration, database, encryption, Cloud Tasks/private Cloud Run target, reviewed Apify discovery and research Actors, OpenRouter, export storage, email, billing provider/Prices, retention secret, and canonical URLs are configured and reachable as applicable. `GET /api/internal/retention` requires `Authorization: Bearer $CRON_SECRET` (or `X-Cron-Secret`) and is intended only for the configured scheduler.

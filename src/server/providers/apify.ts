@@ -580,7 +580,8 @@ function completeLeadRecord(
       text(lead, "company_website", "companyWebsite", "website") ??
       text(place, "website"),
     industry:
-      text(lead, "industry", "companyIndustry") ?? text(place, "categoryName"),
+      text(lead, "industry", "companyIndustry", "company_industry") ??
+      text(place, "categoryName"),
     company_size: scalar(
       lead,
       "company_size",

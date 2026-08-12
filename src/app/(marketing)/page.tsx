@@ -47,7 +47,7 @@ const capabilities = [
     icon: BadgeCheck,
     index: "03",
     title: "Qualification with receipts",
-    copy: "Fit scores include reasons, confidence, freshness, and source context so your team can challenge the result before acting.",
+    copy: "Fit scores include reasons, confidence, freshness, and source context so you can challenge the result before acting.",
     signal: "Evidence on every score",
   },
   {
@@ -97,12 +97,12 @@ const plans = [
   {
     name: "Growth",
     credits: "500",
-    description: "For teams building a repeatable weekly research motion.",
+    description: "More capacity for a repeatable weekly research motion.",
     features: [
-      "Everything in Starter",
-      "Saved searches and history",
-      "Lists and folders",
-      "Usage and export oversight",
+      "All product workflows",
+      "500 monthly research credits",
+      "Lists, history, and exports",
+      "The same governance controls",
     ],
     featured: true,
   },
@@ -111,10 +111,10 @@ const plans = [
     credits: "1,000",
     description: "More room for high-intent markets and operational review.",
     features: [
-      "Everything in Growth",
-      "Higher research capacity",
-      "Admin visibility",
-      "Responsible-use controls",
+      "All product workflows",
+      "1,000 monthly research credits",
+      "More operating capacity",
+      "The same governance controls",
     ],
   },
 ];
@@ -133,7 +133,7 @@ const faqs = [
   {
     question: "Will I see the complete email address?",
     answer:
-      "Authorized workspace members can view available business emails in full. Missing values are shown clearly as null, while restricted records remain visibly protected.",
+      "The authorized workspace owner can view available business emails in full. Missing values are shown clearly as null, while restricted records remain visibly protected.",
   },
   {
     question: "Can I export every lead field?",
@@ -143,7 +143,7 @@ const faqs = [
   {
     question: "Does Athreix send automated outreach?",
     answer:
-      "No. It prepares personalized drafts for review. Your team remains responsible for lawful use, source terms, suppression requirements, and the final send.",
+      "No. It prepares personalized drafts for review. You remain responsible for lawful use, source terms, suppression requirements, and the final send.",
   },
 ];
 
@@ -351,8 +351,9 @@ export default function LandingPage() {
               </h2>
             </div>
             <p className="max-w-sm text-sm leading-6 text-muted-foreground">
-              One delivered prospect uses one credit. No payment is required
-              while billing remains in preview.
+              One delivered prospect uses one credit. Every verified workspace
+              starts with 250 one-time preview credits; recurring plan prices
+              and taxes are shown in secure checkout.
             </p>
           </div>
 
@@ -392,7 +393,7 @@ export default function LandingPage() {
                   variant={plan.featured ? "default" : "outline"}
                   className="mt-8 w-full rounded-full"
                 >
-                  <Link href="/signup">Start in preview</Link>
+                  <Link href="/signup">Create workspace</Link>
                 </Button>
               </article>
             ))}

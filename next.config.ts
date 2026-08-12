@@ -1,13 +1,15 @@
 import type { NextConfig } from "next";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
+const paddleOrigins = "https://*.paddle.com";
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline' https://cdn.paddle.com${isDevelopment ? " 'unsafe-eval'" : ""}`,
+  `style-src 'self' 'unsafe-inline' ${paddleOrigins}`,
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
+  `font-src 'self' data: ${paddleOrigins}`,
+  `connect-src 'self' ${paddleOrigins}`,
+  `frame-src ${paddleOrigins}`,
   "media-src 'self' blob: https:",
   "worker-src 'self' blob:",
   "object-src 'none'",
@@ -47,7 +49,7 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
-  serverExternalPackages: ["bullmq", "ioredis", "exceljs"],
+  serverExternalPackages: ["exceljs"],
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

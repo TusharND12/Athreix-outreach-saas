@@ -7,6 +7,7 @@ import { db } from "@/lib/server/db";
 import { env } from "@/lib/server/env";
 import { z } from "zod";
 import nodemailer from "nodemailer";
+import { sendFirebasePasswordResetEmail } from "@/lib/server/firebase-auth";
 
 const schema = z.object({ email: z.string().trim().email().max(254) });
 
@@ -26,19 +27,24 @@ export async function POST(request: Request) {
         select: { id: true },
       });
       if (user) {
-        const token = createHash("sha256").update(rawToken).digest("hex");
-        await db.verificationToken.deleteMany({
-          where: { identifier: `password:${normalized}` },
-        });
-        await db.verificationToken.create({
-          data: {
-            identifier: `password:${normalized}`,
-            token,
-            expires: new Date(
-              Date.now() + env.PASSWORD_RESET_TTL_MINUTES * 60 * 1000,
-            ),
-          },
-        });
+        if (
+          (env.EMAIL_SERVER && env.EMAIL_FROM) ||
+          env.NODE_ENV !== "production"
+        ) {
+          const token = createHash("sha256").update(rawToken).digest("hex");
+          await db.verificationToken.deleteMany({
+            where: { identifier: `password:${normalized}` },
+          });
+          await db.verificationToken.create({
+            data: {
+              identifier: `password:${normalized}`,
+              token,
+              expires: new Date(
+                Date.now() + env.PASSWORD_RESET_TTL_MINUTES * 60 * 1000,
+              ),
+            },
+          });
+        }
         if (env.EMAIL_SERVER && env.EMAIL_FROM) {
           try {
             const transport = nodemailer.createTransport(env.EMAIL_SERVER);
@@ -55,6 +61,8 @@ export async function POST(request: Request) {
               error instanceof Error ? error.message : "unknown mail error",
             );
           }
+        } else if (env.NODE_ENV === "production") {
+          await sendFirebasePasswordResetEmail(normalized).catch(() => false);
         }
       }
     }

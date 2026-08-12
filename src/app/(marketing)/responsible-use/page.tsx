@@ -8,7 +8,7 @@ import {
 export const metadata: Metadata = {
   title: "Responsible Use",
   description:
-    "The pre-launch responsible-use principles and prohibited uses for Athreix Prospect AI.",
+    "The responsible-use requirements and prohibited uses for Athreix Prospect AI.",
 };
 
 const sections: LegalSection[] = [
@@ -108,15 +108,14 @@ const sections: LegalSection[] = [
     ),
   },
   {
-    title: "B2C has stricter controls",
+    title: "Consumer targeting is not launched",
     body: (
       <p>
-        B2C mode is intended for legitimate consumer-audience workflows where
-        the customer can document purpose and permission. Use consent-aware
-        sources, minimize attributes, keep retention short, restrict exports,
-        and review suppression status before activation. Do not use inferred
-        sensitive traits or scrape consumer profiles simply because they are
-        viewable.
+        The initial service is limited to B2B professional research. Do not use
+        it to target consumer audiences or infer sensitive traits. Any future
+        consumer workflow would require separately approved sources, purpose,
+        permission, minimization, retention, suppression, export, and legal
+        controls before it is offered to customers.
       </p>
     ),
   },
@@ -132,9 +131,9 @@ const sections: LegalSection[] = [
         <p>
           To submit a rights or suppression request involving Athreix, contact
           the relevant workspace owner and email{" "}
-          <a href="mailto:privacy@athreix.ai">privacy@athreix.ai</a>. Include
-          enough context to locate the record, but do not send unnecessary
-          identity documents by ordinary email.
+          <a href="mailto:tech@athreix.com">tech@athreix.com</a>. Include enough
+          context to locate the record, but do not send unnecessary identity
+          documents by ordinary email.
         </p>
       </>
     ),
@@ -150,9 +149,9 @@ const sections: LegalSection[] = [
         </p>
         <p>
           Report suspected misuse to{" "}
-          <a href="mailto:trust@athreix.ai">trust@athreix.ai</a>. This draft
-          will be updated as source configurations, launch regions, and
-          regulatory obligations are finalized.
+          <a href="mailto:tech@athreix.com">tech@athreix.com</a>. We may update
+          this policy as source configurations, supported regions, and
+          regulatory obligations change.
         </p>
       </>
     ),
@@ -163,7 +162,7 @@ export default function ResponsibleUsePage() {
   return (
     <LegalPage
       title="Responsible Use"
-      summary="Clear limits for prospect research, consumer-audience work, and AI-assisted outreach. Trust is a workflow requirement, not a footer promise."
+      summary="Clear limits for B2B prospect research and AI-assisted outreach drafts. Trust is a workflow requirement, not a footer promise."
       sections={sections}
     />
   );

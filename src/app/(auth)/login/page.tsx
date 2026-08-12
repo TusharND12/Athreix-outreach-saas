@@ -15,6 +15,8 @@ export default async function LoginPage({
     callbackUrl?: string;
     created?: string;
     verified?: string;
+    pending?: string;
+    consent?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -28,8 +30,13 @@ export default async function LoginPage({
     >
       <LoginForm
         callbackUrl={params.callbackUrl}
+        privacyNoticeVersion={
+          process.env.PRIVACY_NOTICE_VERSION ?? "2026-08-11"
+        }
         accountCreated={params.created === "1"}
         emailVerified={params.verified === "1"}
+        pendingApproval={params.pending === "1"}
+        consentWithdrawn={params.consent === "withdrawn"}
         demoCredentials={
           showDemo
             ? { email: "demo@athreix.ai", password: "AthreixDemo2026!" }

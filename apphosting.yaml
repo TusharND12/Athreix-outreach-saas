@@ -1,0 +1,224 @@
+runConfig:
+  minInstances: 1
+  maxInstances: 10
+  concurrency: 80
+  cpu: 2
+  memoryMiB: 2048
+
+env:
+  - variable: FIREBASE_PROJECT_ID
+    value: athreix-outreach-saas
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: FIREBASE_STORAGE_BUCKET
+    value: athreix-outreach-saas.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyDApvZqpT77gVots6VSZzLWd-OCdV47IgM
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: athreix-outreach-saas.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: athreix-outreach-saas
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: athreix-outreach-saas.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "37525009183"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:37525009183:web:160876142d66e99e93f62a
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://athreix-outreach--athreix-outreach-saas.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_B2B_JURISDICTION
+    value: India
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: AUTH_URL
+    value: https://athreix-outreach--athreix-outreach-saas.us-central1.hosted.app
+    availability:
+      - RUNTIME
+  - variable: AUTH_TRUST_HOST
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: ADMIN_EMAILS
+    value: umerkhan@athreix.com
+    availability:
+      - RUNTIME
+  - variable: DEMO_MODE
+    value: "false"
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_DEMO_MODE
+    value: "false"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: LIVE_DATA_ONLY
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_QUEUE
+    value: athreix-search
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_LOCATION
+    value: us-central1
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL
+    value: athreix-task-invoker@athreix-outreach-saas.iam.gserviceaccount.com
+    availability:
+      - RUNTIME
+  - variable: SEARCH_TASK_TARGET_URL
+    value: https://athreix-search-worker-37525009183.us-central1.run.app/tasks/search
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_MAX_ATTEMPTS
+    value: "3"
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_DISPATCH_DEADLINE_SECONDS
+    value: "900"
+    availability:
+      - RUNTIME
+  - variable: SEARCH_TASK_SIGNING_SECRET
+    secret: ATHREIX_SEARCH_TASK_SIGNING_SECRET
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_LIVE_DATA_ONLY
+    value: "true"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: TERMS_VERSION
+    value: "2026-08-11"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: RESPONSIBLE_USE_VERSION
+    value: "2026-08-11"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: PRIVACY_NOTICE_VERSION
+    value: "2026-08-11"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: AUTH_SECRET
+    secret: ATHREIX_AUTH_SECRET
+  - variable: FIELD_ENCRYPTION_KEY
+    secret: ATHREIX_FIELD_ENCRYPTION_KEY
+  - variable: CRON_SECRET
+    secret: ATHREIX_CRON_SECRET
+  - variable: APIFY_API_TOKEN
+    secret: APIFY_API_TOKEN
+    availability:
+      - RUNTIME
+  - variable: APIFY_B2B_ACTOR_ID
+    value: code_crafter/leads-finder
+    availability:
+      - RUNTIME
+  # Operator-approved B2B scope. The provider uses these limits for every run.
+  - variable: APIFY_ALLOWED_ACTORS
+    value: code_crafter/leads-finder,apify/website-content-crawler
+    availability:
+      - RUNTIME
+  - variable: APIFY_TERMS_VERSION
+    value: "2026-08-01"
+    availability:
+      - RUNTIME
+  - variable: APIFY_ACTOR_REVIEWS_JSON
+    value: >-
+      [{"actorId":"code_crafter/leads-finder","creator":"Code Pioneer
+      (code_crafter)","reviewedAt":"2026-08-11T00:00:00.000Z","expiresAt":"2027-08-11T00:00:00.000Z","termsVersion":"2026-08-01","reviewVersion":"athreix-b2b-india-v1","modes":["B2B"],"jurisdictions":["India"],"permissions":["professional_business_data"],"maxMemoryMbytes":1024,"timeoutSecs":300,"maxTotalChargeUsd":5,"approved":true},{"actorId":"apify/website-content-crawler","creator":"Apify","reviewedAt":"2026-08-11T00:00:00.000Z","expiresAt":"2027-02-11T00:00:00.000Z","termsVersion":"2026-08-01","reviewVersion":"athreix-staging-public-website-v1","modes":["B2B"],"jurisdictions":["India"],"permissions":["public_company_website_content"],"maxMemoryMbytes":512,"timeoutSecs":120,"maxTotalChargeUsd":0.05,"approved":true}]
+    availability:
+      - RUNTIME
+  - variable: APIFY_RESEARCH_ACTORS_JSON
+    value: >-
+      [{"key":"website","actorId":"apify/website-content-crawler","build":"0.3.94","input":{"startUrls":[{"url":"{{company.website}}"}],"crawlerType":"cheerio","maxCrawlDepth":1,"maxCrawlPages":5,"useSitemaps":false,"proxyConfiguration":{"useApifyProxy":true}},"resultLimit":5,"retries":0,"cacheTtlMinutes":1440,"enabled":true}]
+    availability:
+      - RUNTIME
+  - variable: APIFY_RESEARCH_COMPANY_LIMIT
+    value: "10"
+    availability:
+      - RUNTIME
+  - variable: BILLING_PROVIDER
+    value: paddle
+    availability:
+      - RUNTIME
+  - variable: PADDLE_API_KEY
+    secret: PADDLE_SANDBOX_API_KEY
+    availability:
+      - RUNTIME
+  - variable: PADDLE_WEBHOOK_SECRET
+    secret: PADDLE_SANDBOX_WEBHOOK_SECRET
+    availability:
+      - RUNTIME
+  - variable: PADDLE_PRICE_STARTER
+    value: pri_01kznwtb83rmcy9z2w67mpjrkf
+    availability:
+      - RUNTIME
+  - variable: PADDLE_PRICE_GROWTH
+    value: pri_01kznwtbh3hkrw0acvxht5pgqc
+    availability:
+      - RUNTIME
+  - variable: PADDLE_PRICE_SCALE
+    value: pri_01kznwtbnmsqht1zkmnqm2qqg1
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_PADDLE_ENV
+    value: sandbox
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
+    # Sandbox client tokens are publishable credentials used by Paddle.js.
+    value: test_1aa98c099061ca7e7d3379fd2c5
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: OPENROUTER_API_KEY
+    secret: OPENROUTER_API_KEY
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_MODEL
+    value: google/gemini-3.1-flash-lite
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_SCORING_MODEL
+    value: google/gemini-3.1-flash-lite
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_OUTREACH_MODEL
+    value: google/gemini-3.1-flash-lite
+    availability:
+      - RUNTIME
+  - variable: OPENROUTER_RESEARCH_MODEL
+    value: google/gemini-3.1-flash-lite
+    availability:
+      - RUNTIME

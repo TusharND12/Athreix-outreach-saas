@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/server/db";
-import { approvedB2CSource, env } from "@/lib/server/env";
+import { actorReviewAllows, approvedB2CSource, env } from "@/lib/server/env";
 import { decryptSensitive, maskEmail, maskPhone } from "@/lib/server/crypto";
 import { AppError } from "@/lib/server/errors";
 import { compactLeadRecord, type LeadRecordValue } from "@/lib/leads/columns";
@@ -9,10 +9,10 @@ import type { z } from "zod";
 import type { createSearchSchema, resultsQuerySchema } from "@/server/schemas";
 import {
   enqueueSearch,
+  cancelQueuedSearchJob,
   QueueEnqueueUncertainError,
   queueReconciliationIsAccepted,
   removeUnclaimedSearchJob,
-  searchQueue,
   shouldRunSearchInline,
 } from "@/server/job-queue";
 import { processSearchJob } from "@/server/pipeline";
@@ -174,6 +174,40 @@ export async function createSearch(
     };
   }
 
+  if (input.mode === "B2B" && env.apifyEnabled) {
+    const actorId = env.APIFY_B2B_ACTOR_ID;
+    const review = env.actorReviews.find(
+      (candidate) => candidate.actorId === actorId,
+    );
+    if (!actorId || !env.actorAllowlist.has(actorId) || !review) {
+      throw new AppError(
+        "ACTOR_NOT_APPROVED",
+        "The business research provider is not approved for live searches.",
+        503,
+      );
+    }
+    if (!input.jurisdiction) {
+      throw new AppError(
+        "JURISDICTION_REQUIRED",
+        "Select the data jurisdiction country before starting this search.",
+        422,
+      );
+    }
+    if (
+      !actorReviewAllows(review, {
+        mode: "B2B",
+        jurisdiction: input.jurisdiction,
+        termsVersion: env.APIFY_TERMS_VERSION,
+      })
+    ) {
+      throw new AppError(
+        "JURISDICTION_NOT_APPROVED",
+        `Live business research is not currently approved for ${input.jurisdiction}.`,
+        422,
+      );
+    }
+  }
+
   if (input.mode === "B2C" && env.apifyEnabled) {
     const actorId = env.APIFY_B2C_ACTOR_ID;
     const sourceAuthorized = actorId
@@ -312,7 +346,7 @@ export async function createSearch(
       jobId: created.job.id,
     });
   } catch (error) {
-    // A timed-out Redis command cannot be cancelled and may still complete.
+    // A timed-out Cloud Tasks request cannot be cancelled and may still complete.
     // Keep the reservation pending instead of racing a worker with cleanup.
     queued = error instanceof QueueEnqueueUncertainError;
   }
@@ -1128,9 +1162,7 @@ export async function deleteSearch(context: RequestContext, id: string) {
     );
   }
   if (job && ["QUEUED", "RETRYING"].includes(job.status)) {
-    try {
-      await (await searchQueue()?.getJob(job.id))?.remove();
-    } catch {
+    if (!(await cancelQueuedSearchJob(job.id))) {
       throw new AppError(
         "QUEUE_UNAVAILABLE",
         "The queued search could not be cancelled safely. Try again shortly.",

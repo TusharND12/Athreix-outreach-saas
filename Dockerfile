@@ -10,7 +10,7 @@ FROM base AS builder
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm db:generate && pnpm build
+RUN pnpm build
 
 FROM base AS runner
 ENV NODE_ENV=production
@@ -26,4 +26,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
-CMD ["pnpm", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start"]

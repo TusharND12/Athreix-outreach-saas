@@ -3,6 +3,7 @@ import { apiRoute, apiSuccess } from "@/lib/server/api";
 import { db } from "@/lib/server/db";
 import { encryptSensitive, hashIdentifier } from "@/lib/server/crypto";
 import { readJson } from "@/lib/server/errors";
+import { enforceRateLimit } from "@/lib/server/rate-limit";
 import { requireContext } from "@/server/auth-context";
 import { writeAudit } from "@/server/audit";
 
@@ -42,7 +43,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   return apiRoute(async () => {
-    const context = await requireContext("MEMBER");
+    const context = await requireContext("VIEWER");
+    await enforceRateLimit(
+      `privacy-request:${context.workspaceId}:${context.userId}`,
+      10,
+      24 * 60 * 60,
+    );
     const input = schema.parse(await readJson(request));
     if (context.demo)
       return apiSuccess(
@@ -53,11 +59,28 @@ export async function POST(request: Request) {
         },
         { status: 201 },
       );
+    const identityHash = hashIdentifier(input.identity);
+    const existing = await db.dataSubjectRequest.findFirst({
+      where: {
+        workspaceId: context.workspaceId,
+        type: input.type,
+        identityHash,
+        status: { in: ["RECEIVED", "VERIFYING", "IN_PROGRESS"] },
+      },
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        dueAt: true,
+        createdAt: true,
+      },
+    });
+    if (existing) return apiSuccess(existing);
     const saved = await db.dataSubjectRequest.create({
       data: {
         workspaceId: context.workspaceId,
         type: input.type,
-        identityHash: hashIdentifier(input.identity),
+        identityHash,
         requestEncrypted: encryptSensitive(
           JSON.stringify({ identity: input.identity, details: input.details }),
         ),

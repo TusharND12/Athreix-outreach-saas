@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   keywords: [
     "prospect intelligence",
     "B2B lead research",
-    "B2C audience research",
+    "B2B company intelligence",
     "AI prospecting",
     "sales outreach",
   ],

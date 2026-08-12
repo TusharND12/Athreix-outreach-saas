@@ -28,6 +28,7 @@ const collectionNames: Record<string, string> = {
   Workspace: "workspaces",
   WorkspaceMember: "workspaceMembers",
   Subscription: "subscriptions",
+  BillingEvent: "billingEvents",
   CreditLedger: "creditLedger",
   Search: "searches",
   SearchJob: "searchJobs",

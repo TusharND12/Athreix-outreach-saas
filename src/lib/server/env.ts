@@ -4,6 +4,10 @@ const emptyAsUndefined = (value: unknown) => (value === "" ? undefined : value);
 const optionalUrl = z.preprocess(emptyAsUndefined, z.string().url().optional());
 const optionalMinimum = (minimum: number) =>
   z.preprocess(emptyAsUndefined, z.string().min(minimum).optional());
+const optionalPrefix = (prefix: string) =>
+  z.preprocess(emptyAsUndefined, z.string().startsWith(prefix).optional());
+const optionalPattern = (pattern: RegExp) =>
+  z.preprocess(emptyAsUndefined, z.string().regex(pattern).optional());
 const optionalEmail = z.preprocess(
   emptyAsUndefined,
   z.string().email().optional(),
@@ -36,13 +40,20 @@ const envSchema = z.object({
   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: z.string().optional(),
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().optional(),
+  AUTH_URL: optionalUrl,
   AUTH_SECRET: optionalMinimum(32),
   AUTH_TRUST_HOST: z.enum(["true", "false"]).optional(),
   AUTH_GOOGLE_ID: z.string().optional(),
   AUTH_GOOGLE_SECRET: z.string().optional(),
   FIELD_ENCRYPTION_KEY: optionalMinimum(32),
   ENCRYPTION_KEY: optionalMinimum(32),
-  REDIS_URL: optionalUrl,
+  CLOUD_TASKS_QUEUE: z.string().min(1).default("athreix-search"),
+  CLOUD_TASKS_LOCATION: z.string().min(1).default("us-central1"),
+  CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL: optionalEmail,
+  SEARCH_TASK_TARGET_URL: optionalUrl,
+  CLOUD_TASKS_MAX_ATTEMPTS: boundedInteger(1, 10, 3),
+  CLOUD_TASKS_DISPATCH_DEADLINE_SECONDS: boundedInteger(60, 1_800, 900),
+  SEARCH_TASK_SIGNING_SECRET: optionalMinimum(32),
   APIFY_API_TOKEN: z.string().optional(),
   APIFY_TOKEN: z.string().optional(),
   APIFY_B2B_ACTOR_ID: z.string().optional(),
@@ -52,6 +63,7 @@ const envSchema = z.object({
   APIFY_B2C_SOURCES_JSON: z.string().optional(),
   APIFY_TERMS_VERSION: z.string().min(1).optional(),
   APIFY_RESEARCH_ACTORS_JSON: z.string().optional(),
+  APIFY_RESEARCH_COMPANY_LIMIT: boundedInteger(1, 100, 10),
   APIFY_RESEARCH_COMPANY_CONCURRENCY: boundedInteger(1, 10, 3),
   APIFY_RESEARCH_ACTOR_CONCURRENCY: boundedInteger(1, 20, 6),
   APIFY_RESEARCH_CACHE_TTL_MINUTES: boundedInteger(5, 10_080, 1_440),
@@ -73,21 +85,33 @@ const envSchema = z.object({
   SEARCH_ANALYSIS_BUDGET_MS: boundedInteger(30_000, 3_600_000, 600_000),
   SEARCH_JOB_HEARTBEAT_INTERVAL_MS: boundedInteger(2_000, 30_000, 10_000),
   SEARCH_JOB_STALE_AFTER_MS: boundedInteger(30_000, 300_000, 90_000),
-  SEARCH_WORKER_CONCURRENCY: boundedInteger(1, 10, 2),
   CRON_SECRET: optionalMinimum(16),
   EMAIL_SERVER: z.string().optional(),
   EMAIL_FROM: optionalEmail,
+  BILLING_PROVIDER: z.enum(["paddle"]).optional(),
+  PADDLE_API_KEY: optionalPattern(/^pdl_(?:sdbx|live)_apikey_/),
+  PADDLE_SANDBOX_API_KEY: optionalPrefix("pdl_sdbx_apikey_"),
+  PADDLE_WEBHOOK_SECRET: optionalPrefix("pdl_ntfset_"),
+  PADDLE_PRICE_STARTER: optionalPattern(/^pri_[a-z\d]{26}$/),
+  PADDLE_PRICE_GROWTH: optionalPattern(/^pri_[a-z\d]{26}$/),
+  PADDLE_PRICE_SCALE: optionalPattern(/^pri_[a-z\d]{26}$/),
+  NEXT_PUBLIC_PADDLE_ENV: z.enum(["sandbox", "production"]).optional(),
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: optionalPattern(
+    /^(?:test|live)_[A-Za-z\d]{27}$/,
+  ),
   PASSWORD_RESET_TTL_MINUTES: z.preprocess(
     emptyAsUndefined,
     z.coerce.number().int().min(5).max(120).default(30),
   ),
   NEXT_PUBLIC_APP_URL: optionalUrl,
+  NEXT_PUBLIC_B2B_JURISDICTION: z.string().trim().min(2).max(100).optional(),
   DEMO_MODE: z.enum(["true", "false"]).optional(),
   NEXT_PUBLIC_DEMO_MODE: z.enum(["true", "false"]).optional(),
   LIVE_DATA_ONLY: z.enum(["true", "false"]).optional(),
   NEXT_PUBLIC_LIVE_DATA_ONLY: z.enum(["true", "false"]).optional(),
-  TERMS_VERSION: z.string().min(1).default("2026-07-20"),
-  RESPONSIBLE_USE_VERSION: z.string().min(1).default("2026-07-20"),
+  TERMS_VERSION: z.string().min(1).default("2026-08-11"),
+  RESPONSIBLE_USE_VERSION: z.string().min(1).default("2026-08-11"),
+  PRIVACY_NOTICE_VERSION: z.string().min(1).default("2026-08-11"),
   ADMIN_EMAILS: z.string().optional(),
 });
 
@@ -154,6 +178,7 @@ export type ApifyResearchActor = {
     | "reviews"
     | "social";
   actorId: string;
+  build: string;
   queryTemplate?: string;
   input?: Record<string, unknown>;
   resultLimit: number;
@@ -242,6 +267,9 @@ function readResearchActors(value?: string): ApifyResearchActor[] {
               "social",
             ]),
             actorId: z.string().min(1).max(200),
+            build: z
+              .string()
+              .regex(/^\d+\.\d+\.\d+$/, "Actor build must be pinned"),
             queryTemplate: z.string().min(1).max(1_000).optional(),
             input: z.record(z.string(), z.unknown()).optional(),
             resultLimit: z.number().int().min(1).max(100).default(10),
@@ -344,6 +372,7 @@ const b2bActorReady = Boolean(
   actorAllowlist.has(raw.APIFY_B2B_ACTOR_ID) &&
   actorReviewAllows(b2bReview, {
     mode: "B2B",
+    jurisdiction: b2bReview?.jurisdictions[0],
     termsVersion: raw.APIFY_TERMS_VERSION,
   }),
 );
@@ -381,6 +410,7 @@ const apifyResearchReady =
         actorAllowlist.has(actor.actorId) &&
         actorReviewAllows(review, {
           mode: "B2B",
+          jurisdiction: review?.jurisdictions[0],
           termsVersion: raw.APIFY_TERMS_VERSION,
         })
       );
@@ -397,6 +427,39 @@ const demoMode =
   (raw.NODE_ENV !== "production" && !raw.FIREBASE_PROJECT_ID);
 const liveDataOnly =
   raw.LIVE_DATA_ONLY === "true" || raw.NEXT_PUBLIC_LIVE_DATA_ONLY === "true";
+const billingPriceIds = {
+  STARTER: raw.PADDLE_PRICE_STARTER,
+  GROWTH: raw.PADDLE_PRICE_GROWTH,
+  SCALE: raw.PADDLE_PRICE_SCALE,
+} as const;
+const configuredBillingPriceIds = Object.values(billingPriceIds).filter(
+  (priceId): priceId is string => Boolean(priceId),
+);
+const paddleApiKey = raw.PADDLE_API_KEY ?? raw.PADDLE_SANDBOX_API_KEY;
+const paddleCredentialsMatchEnvironment = Boolean(
+  raw.NEXT_PUBLIC_PADDLE_ENV === "sandbox"
+    ? paddleApiKey?.startsWith("pdl_sdbx_apikey_") &&
+        raw.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.startsWith("test_")
+    : raw.NEXT_PUBLIC_PADDLE_ENV === "production"
+      ? paddleApiKey?.startsWith("pdl_live_apikey_") &&
+        raw.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.startsWith("live_")
+      : false,
+);
+const billingReady = Boolean(
+  raw.BILLING_PROVIDER === "paddle" &&
+  paddleApiKey &&
+  raw.PADDLE_WEBHOOK_SECRET &&
+  raw.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN &&
+  paddleCredentialsMatchEnvironment &&
+  configuredBillingPriceIds.length === 3 &&
+  new Set(configuredBillingPriceIds).size === 3,
+);
+const openRouterModelsPinned = [
+  raw.OPENROUTER_MODEL,
+  raw.OPENROUTER_SCORING_MODEL,
+  raw.OPENROUTER_OUTREACH_MODEL,
+  raw.OPENROUTER_RESEARCH_MODEL,
+].every((model) => Boolean(model && model !== "openrouter/auto"));
 
 function productionAppUrlIsReady(value?: string) {
   if (!value) return false;
@@ -413,11 +476,21 @@ function productionAppUrlIsReady(value?: string) {
   }
 }
 
+function productionAuthUrlIsReady(authUrl?: string, publicAppUrl?: string) {
+  if (!authUrl || !publicAppUrl || !productionAppUrlIsReady(authUrl))
+    return false;
+  try {
+    return new URL(authUrl).origin === new URL(publicAppUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
 export const env = {
   ...raw,
+  PADDLE_API_KEY: paddleApiKey,
   FIREBASE_PROJECT_ID: raw.FIREBASE_PROJECT_ID || undefined,
   FIREBASE_STORAGE_BUCKET: raw.FIREBASE_STORAGE_BUCKET || undefined,
-  REDIS_URL: raw.REDIS_URL || undefined,
   ENCRYPTION_KEY: raw.FIELD_ENCRYPTION_KEY ?? raw.ENCRYPTION_KEY,
   APIFY_TOKEN: raw.APIFY_API_TOKEN ?? raw.APIFY_TOKEN,
   OPENROUTER_MODEL: raw.OPENROUTER_MODEL,
@@ -443,9 +516,37 @@ export const env = {
   b2bActorReady,
   b2cActorReady,
   apifyResearchReady,
-  emailDeliveryReady: Boolean(raw.EMAIL_SERVER && raw.EMAIL_FROM),
+  emailDeliveryProvider:
+    raw.EMAIL_SERVER && raw.EMAIL_FROM
+      ? ("smtp" as const)
+      : raw.FIREBASE_PROJECT_ID && raw.NEXT_PUBLIC_FIREBASE_API_KEY
+        ? ("firebase" as const)
+        : undefined,
+  emailDeliveryReady: Boolean(
+    (raw.EMAIL_SERVER && raw.EMAIL_FROM) ||
+    (raw.FIREBASE_PROJECT_ID && raw.NEXT_PUBLIC_FIREBASE_API_KEY),
+  ),
+  billingProvider: raw.BILLING_PROVIDER,
+  billingPriceIds,
+  billingReady,
+  openRouterModelsPinned,
+  firebasePasswordAuthReady: Boolean(
+    raw.FIREBASE_PROJECT_ID && raw.NEXT_PUBLIC_FIREBASE_API_KEY,
+  ),
   cronReady: Boolean(raw.CRON_SECRET),
+  cloudTasksReady: Boolean(
+    raw.FIREBASE_PROJECT_ID &&
+    raw.CLOUD_TASKS_QUEUE &&
+    raw.CLOUD_TASKS_LOCATION &&
+    raw.CLOUD_TASKS_SERVICE_ACCOUNT_EMAIL &&
+    raw.SEARCH_TASK_TARGET_URL &&
+    raw.SEARCH_TASK_SIGNING_SECRET,
+  ),
   productionAppUrlReady: productionAppUrlIsReady(raw.NEXT_PUBLIC_APP_URL),
+  productionAuthUrlReady: productionAuthUrlIsReady(
+    raw.AUTH_URL,
+    raw.NEXT_PUBLIC_APP_URL,
+  ),
   demoMode,
   liveDataOnly,
   mockDataEnabled: demoMode && !liveDataOnly,
@@ -459,7 +560,6 @@ export const env = {
         Boolean(raw.VERCEL))),
   databaseEnabled: Boolean(raw.FIREBASE_PROJECT_ID),
   firebaseEnabled: Boolean(raw.FIREBASE_PROJECT_ID),
-  redisEnabled: Boolean(raw.REDIS_URL),
   apifyEnabled: Boolean(raw.APIFY_API_TOKEN ?? raw.APIFY_TOKEN),
   openRouterEnabled: Boolean(raw.OPENROUTER_API_KEY),
   authHardened: Boolean(raw.AUTH_SECRET),

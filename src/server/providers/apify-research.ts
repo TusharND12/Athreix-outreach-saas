@@ -322,10 +322,12 @@ function sanitizeActorItems(
 }
 
 function renderTemplate(value: unknown, target: CompanyTarget): unknown {
+  const website =
+    target.website ?? (target.domain ? `https://${target.domain}` : "");
   const variables: Record<string, string> = {
     "company.name": target.name,
     "company.domain": target.domain ?? "",
-    "company.website": target.website ?? "",
+    "company.website": website,
     "company.location": target.location ?? "",
     "company.industry": target.industry ?? "",
   };
@@ -357,6 +359,20 @@ function actorInput(actor: ApifyResearchActor, target: CompanyTarget) {
     maxItems: actor.resultLimit,
   };
   return renderTemplate(configured, target) as Record<string, unknown>;
+}
+
+function actorCanRunForTarget(
+  actor: ApifyResearchActor,
+  target: CompanyTarget,
+) {
+  if (
+    ["website", "contact", "about", "services", "careers"].includes(actor.key)
+  ) {
+    return Boolean(
+      target.website ?? (target.domain ? `https://${target.domain}` : ""),
+    );
+  }
+  return true;
 }
 
 function mergeBundles(bundles: ResearchBundle[]): ResearchBundle {
@@ -463,6 +479,7 @@ async function runActor(
   );
   if (
     !actor.enabled ||
+    !actorCanRunForTarget(actor, target) ||
     !env.actorAllowlist.has(actor.actorId) ||
     !review ||
     !actorReviewAllows(review, {
@@ -477,6 +494,7 @@ async function runActor(
     [
       input.workspaceId,
       actor.actorId,
+      actor.build,
       actor.key,
       target.key,
       JSON.stringify(actorInput(actor, target)),
@@ -495,6 +513,7 @@ async function runActor(
           memory: review.maxMemoryMbytes,
           maxItems: actor.resultLimit,
           maxTotalChargeUsd: review.maxTotalChargeUsd,
+          build: actor.build,
           restartOnError: false,
         }),
       );
@@ -553,16 +572,18 @@ export async function enrichCompaniesWithApifyResearch(
   }
   const research = new Map<string, ResearchBundle>();
   await Promise.all(
-    [...targets.values()].map((target) =>
-      companySemaphore.run(async () => {
-        const bundles = await Promise.all(
-          env.researchActors.map((actor) =>
-            runActor(client, actor, target, input),
-          ),
-        );
-        research.set(target.key, mergeBundles(bundles));
-      }),
-    ),
+    [...targets.values()]
+      .slice(0, env.APIFY_RESEARCH_COMPANY_LIMIT)
+      .map((target) =>
+        companySemaphore.run(async () => {
+          const bundles = await Promise.all(
+            env.researchActors.map((actor) =>
+              runActor(client, actor, target, input),
+            ),
+          );
+          research.set(target.key, mergeBundles(bundles));
+        }),
+      ),
   );
   return items.map((item) => {
     const target = companyTarget(item);

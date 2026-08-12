@@ -44,7 +44,6 @@ export default function SettingsPage() {
   });
   const [defaults, setDefaults] = useState({
     tone: "Professional",
-    mode: "B2B",
     score: "65",
     limit: "100",
     location: "India",
@@ -85,7 +84,6 @@ export default function SettingsPage() {
           tone: value.defaultTone
             ? `${value.defaultTone.charAt(0).toUpperCase()}${value.defaultTone.slice(1)}`
             : current.tone,
-          mode: value.defaultFilters?.mode ?? current.mode,
           score: value.defaultFilters?.score?.toString() ?? current.score,
           limit: value.defaultFilters?.limit?.toString() ?? current.limit,
           location: value.defaultFilters?.location ?? current.location,
@@ -119,7 +117,7 @@ export default function SettingsPage() {
             emailSignature: workspace.signature,
             defaultTone: defaults.tone.toLowerCase(),
             defaultFilters: {
-              mode: defaults.mode,
+              mode: "B2B",
               score: Number(defaults.score),
               limit: Number(defaults.limit),
               location: defaults.location,
@@ -205,8 +203,8 @@ export default function SettingsPage() {
                 Workspace profile
               </h2>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                Stored on the workspace record. Company name and signature are
-                not automatically inserted into current exports or drafts yet.
+                Stored on the workspace record. The signature is appended to new
+                cold-email and follow-up drafts.
               </p>
               <div className="mt-6 grid gap-5 sm:grid-cols-2">
                 <Field
@@ -240,7 +238,7 @@ export default function SettingsPage() {
                 <div className="sm:col-span-2">
                   <TextAreaField
                     label="Stored email signature"
-                    hint="Automatic insertion into outreach drafts is pending integration."
+                    hint="Appended to generated cold-email and follow-up drafts."
                     rows={4}
                     value={workspace.signature}
                     onChange={(event) => {
@@ -262,22 +260,11 @@ export default function SettingsPage() {
                 Stored search and AI preferences
               </h2>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                These values are retained for a future prefill integration. The
-                current search composer and outreach generator require an
-                explicit choice and do not consume them automatically.
+                The search composer uses these values as editable starting
+                points. AI interpretation and every launch still show the final
+                search inputs before credits are reserved.
               </p>
               <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                <SelectField
-                  label="Default research mode"
-                  value={defaults.mode}
-                  onChange={(event) => {
-                    setDefaults({ ...defaults, mode: event.target.value });
-                    change();
-                  }}
-                >
-                  <option>B2B</option>
-                  <option>B2C</option>
-                </SelectField>
                 <SelectField
                   label="AI outreach tone"
                   value={defaults.tone}
@@ -379,11 +366,10 @@ export default function SettingsPage() {
                 </InlineNotice>
               </div>
               <p className="mt-5 text-xs leading-5 text-zinc-500">
-                Bulk suppression upload, audit-file download, data inventory,
-                and workspace-deletion workflows are not exposed in this
-                interface until their authenticated server operations are
-                available. Individual privacy and suppression requests remain
-                protected API operations.
+                Account and workspace deletion requests are available from
+                Profile and enter the audited privacy queue. Bulk suppression,
+                audit-file download, and automated provider erasure remain
+                restricted operator workflows.
               </p>
             </Surface>
           ) : null}

@@ -17,7 +17,7 @@ export default async function VerifyEmailPage({
   return (
     <AuthShell
       title="Verify your email"
-      description="Verification protects the workspace and activates your starter credits."
+      description="Verification protects the workspace and sends the account for platform approval."
     >
       <VerifyEmailForm email={params.email} token={params.token} />
     </AuthShell>

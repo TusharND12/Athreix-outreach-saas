@@ -3,10 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
   // This datasource is never connected at runtime. The schema is retained only
   // to generate model metadata and TypeScript types for the Firestore adapter.
-  url       = "postgresql://unused:unused@127.0.0.1:1/firestore_metadata"
+  url      = "postgresql://unused:unused@127.0.0.1:1/firestore_metadata"
 }
 
 enum WorkspaceRole {
@@ -174,6 +174,12 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+enum BillingEventOutcome {
+  PROCESSED
+  IGNORED
+  STALE
+}
+
 enum NotificationType {
   SEARCH_COMPLETE
   EXPORT_READY
@@ -200,19 +206,30 @@ enum DataRequestStatus {
   REJECTED
 }
 
+enum AccountApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id              String    @id @default(cuid())
-  name            String?
-  email           String?   @unique
-  emailVerified   DateTime?
-  image           String?
-  passwordHash    String?
-  timezone        String    @default("UTC")
-  isPlatformAdmin Boolean   @default(false)
-  suspendedAt     DateTime?
-  sessionVersion  Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id               String                @id @default(cuid())
+  name             String?
+  email            String?               @unique
+  emailVerified    DateTime?
+  image            String?
+  passwordHash     String?
+  timezone         String                @default("UTC")
+  isPlatformAdmin  Boolean               @default(false)
+  approvalStatus   AccountApprovalStatus @default(PENDING)
+  approvedAt       DateTime?
+  approvedById     String?
+  rejectedAt       DateTime?
+  approvalNote     String?               @db.Text
+  suspendedAt      DateTime?
+  sessionVersion   Int                   @default(0)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   accounts        Account[]
   sessions        Session[]
@@ -336,17 +353,37 @@ model Subscription {
   workspaceId            String
   plan                   SubscriptionPlan   @default(STARTER)
   status                 SubscriptionStatus @default(TRIALING)
-  externalCustomerId     String?
-  externalSubscriptionId String?
+  provider               String?
+  externalCustomerId     String?            @unique
+  externalSubscriptionId String?            @unique
+  externalPriceId        String?
   currentPeriodStart     DateTime?
   currentPeriodEnd       DateTime?
   cancelAtPeriodEnd      Boolean            @default(false)
+  lastProviderEventAt    DateTime?
+  lastProviderEventId    String?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status])
+}
+
+model BillingEvent {
+  id                String              @id @default(cuid())
+  providerEventKey  String              @unique
+  provider          String
+  externalEventId   String
+  type              String
+  workspaceId       String?
+  externalInvoiceId String?
+  payloadDigest     String
+  outcome           BillingEventOutcome
+  providerCreatedAt DateTime
+  processedAt       DateTime            @default(now())
+
+  @@index([workspaceId, processedAt])
 }
 
 model CreditLedger {

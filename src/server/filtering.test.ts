@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { structuredFilterDecision } from "@/server/filtering";
+import {
+  removeIndustryEquivalentKeywords,
+  structuredFilterDecision,
+} from "@/server/filtering";
 import { normalizeProspect } from "@/server/normalize";
 import { scoreProspect } from "@/server/scoring";
 
@@ -57,5 +60,52 @@ describe("structured filter enforcement", () => {
       location: 8,
       technologyMatch: 10,
     });
+  });
+
+  it("matches provider industry aliases and treats a false hiring toggle as unset", () => {
+    const healthcareFounder = normalizeProspect(
+      {
+        companyName: "Care Labs",
+        contactName: "Mira Shah",
+        title: "Founder",
+        industry: "Hospital & Health Care",
+      },
+      "B2B",
+      provenance,
+    );
+    if (!healthcareFounder || healthcareFounder.mode !== "B2B") {
+      throw new Error("normalization failed");
+    }
+
+    expect(
+      structuredFilterDecision(healthcareFounder, {
+        industries: ["Healthcare"],
+        isHiring: false,
+      }),
+    ).toEqual({ eligible: true, reasons: [] });
+    expect(
+      scoreProspect(healthcareFounder, {
+        query: "founder in health care",
+        filters: { industries: ["Healthcare"] },
+      }).breakdown.industryMatch,
+    ).toBe(14);
+    expect(
+      structuredFilterDecision(healthcareFounder, { isHiring: true }),
+    ).toMatchObject({ eligible: false, reasons: ["hiring"] });
+  });
+
+  it("does not duplicate an industry label as a hard keyword constraint", () => {
+    expect(
+      removeIndustryEquivalentKeywords(
+        ["healthcare", "patient engagement"],
+        ["Healthcare"],
+      ),
+    ).toEqual(["patient engagement"]);
+    expect(
+      removeIndustryEquivalentKeywords(
+        ["Hospital & Health Care", "medical devices"],
+        ["Healthcare"],
+      ),
+    ).toEqual(["medical devices"]);
   });
 });

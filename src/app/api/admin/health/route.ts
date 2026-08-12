@@ -21,12 +21,23 @@ export async function GET() {
       firestore: database ? "up" : "down",
       authentication: authentication ? "up" : "not_configured",
       storage: storage ? "up" : "not_configured",
-      queue: queue ? "up" : env.redisEnabled ? "down" : "not_configured",
+      queue: queue
+        ? "cloud_tasks_ready"
+        : env.cloudTasksReady
+          ? "down"
+          : "not_configured",
+      searchWorker: env.cloudTasksReady
+        ? "cloud_run_push_target_configured"
+        : "not_configured",
+      abuseProtection: database ? "firestore" : "unavailable",
       apifyB2B: env.b2bActorReady ? "ready" : "not_ready",
       apifyB2C: env.b2cActorReady ? "ready" : "disabled_or_not_reviewed",
-      openRouter: env.openRouterEnabled
-        ? "configured"
-        : "deterministic_fallback",
+      openRouter:
+        env.openRouterEnabled && env.openRouterModelsPinned
+          ? "configured_and_pinned"
+          : env.openRouterEnabled
+            ? "configured_but_unpinned"
+            : "deterministic_fallback",
       apifyResearch: env.apifyResearchReady
         ? "parallel_actors_ready"
         : "not_ready",

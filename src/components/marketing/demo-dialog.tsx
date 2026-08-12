@@ -79,7 +79,7 @@ export function DemoDialog() {
           <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <p className="leading-5">
             Every score includes rationale, confidence, source provenance, and
-            freshness so your team can challenge the result.
+            freshness so you can challenge the result.
           </p>
         </div>
         <DialogFooter className="p-6 pt-2 sm:px-8 sm:pb-8">

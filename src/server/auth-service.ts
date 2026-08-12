@@ -1,11 +1,17 @@
 import { db } from "@/lib/server/db";
+import type { Prisma } from "@prisma/client";
 import { env } from "@/lib/server/env";
 import { AppError } from "@/lib/server/errors";
 import {
   createFirebasePasswordUser,
   deleteFirebaseUser,
+  firebaseEmailIsVerified,
   markFirebaseEmailVerified,
 } from "@/lib/server/firebase-auth";
+import {
+  PRIVACY_CONSENT_DATA,
+  PRIVACY_CONSENT_PURPOSES,
+} from "@/lib/privacy-consent";
 
 export async function registerUser(input: {
   name: string;
@@ -15,6 +21,14 @@ export async function registerUser(input: {
     termsVersion: string;
     responsibleUseVersion: string;
     accepted: true;
+  };
+  privacyConsent: {
+    noticeVersion: string;
+    accepted: true;
+  };
+  consentEvidence: {
+    ipHash: string;
+    userAgent?: string;
   };
 }) {
   if (!env.databaseEnabled) {
@@ -67,6 +81,12 @@ export async function registerUser(input: {
           name: input.name.trim(),
           email,
           isPlatformAdmin: env.platformAdminEmails.has(email),
+          approvalStatus: env.platformAdminEmails.has(email)
+            ? "APPROVED"
+            : "PENDING",
+          ...(env.platformAdminEmails.has(email)
+            ? { approvedAt: new Date(), approvedById: identity.uid }
+            : {}),
         },
       });
       const workspace = await tx.workspace.create({
@@ -91,6 +111,25 @@ export async function registerUser(input: {
             termsVersion: input.legalAcceptance.termsVersion,
             responsibleUseVersion: input.legalAcceptance.responsibleUseVersion,
             acceptedAt: new Date().toISOString(),
+          },
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          workspaceId: workspace.id,
+          actorId: user.id,
+          action: "account.privacy_consent",
+          entityType: "user",
+          entityId: user.id,
+          ipHash: input.consentEvidence.ipHash,
+          userAgent: input.consentEvidence.userAgent,
+          metadata: {
+            method: "email_signup",
+            noticeVersion: input.privacyConsent.noticeVersion,
+            acceptedAt: new Date().toISOString(),
+            dataCategories: PRIVACY_CONSENT_DATA.map((item) => item.id),
+            purposes: [...PRIVACY_CONSENT_PURPOSES],
+            affirmativeAction: "unchecked_checkbox_selected",
           },
         },
       });
@@ -128,17 +167,51 @@ export async function issueEmailVerification(userId: string, email: string) {
     createHash("sha256").update(rawToken).digest("hex"),
   );
   const identifier = `email:${email.toLowerCase()}`;
-  await db.$transaction([
-    db.verificationToken.deleteMany({ where: { identifier } }),
-    db.verificationToken.create({
+  await db.$transaction(async (tx) => {
+    await tx.verificationToken.deleteMany({ where: { identifier } });
+    await tx.verificationToken.create({
       data: {
         identifier,
         token,
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
-    }),
-  ]);
+    });
+  });
   return rawToken;
+}
+
+export async function grantStarterCreditsAfterVerification(
+  tx: Prisma.TransactionClient,
+  userId: string,
+) {
+  const membership = await tx.workspaceMember.findFirst({
+    where: { userId, role: "OWNER", isActive: true },
+    select: { workspaceId: true },
+  });
+  if (!membership) return { granted: false, amount: 0 };
+
+  const grantKey = `verification:${userId}:starter-grant`;
+  const existingGrant = await tx.creditLedger.findUnique({
+    where: { idempotencyKey: grantKey },
+  });
+  if (existingGrant) return { granted: false, amount: 0 };
+
+  const workspace = await tx.workspace.update({
+    where: { id: membership.workspaceId },
+    data: { creditBalance: { increment: 250 } },
+  });
+  await tx.creditLedger.create({
+    data: {
+      workspaceId: membership.workspaceId,
+      userId,
+      type: "MONTHLY_GRANT",
+      amount: 250,
+      balanceAfter: workspace.creditBalance,
+      idempotencyKey: grantKey,
+      description: "Starter credits activated after email verification",
+    },
+  });
+  return { granted: true, amount: 250 };
 }
 
 export async function verifyEmailToken(emailValue: string, rawToken: string) {
@@ -180,38 +253,37 @@ export async function verifyEmailToken(emailValue: string, rawToken: string) {
       where: { id: user.id },
       data: { emailVerified: new Date(), sessionVersion: { increment: 1 } },
     });
-    const membership = await tx.workspaceMember.findFirst({
-      where: { userId: user.id, role: "OWNER", isActive: true },
-      include: { workspace: { select: { creditBalance: true } } },
-    });
-    if (membership) {
-      const grantKey = `verification:${user.id}:starter-grant`;
-      const existingGrant = await tx.creditLedger.findUnique({
-        where: { idempotencyKey: grantKey },
-      });
-      if (!existingGrant) {
-        const workspace = await tx.workspace.update({
-          where: { id: membership.workspaceId },
-          data: { creditBalance: { increment: 250 } },
-        });
-        await tx.creditLedger.create({
-          data: {
-            workspaceId: membership.workspaceId,
-            userId: user.id,
-            type: "MONTHLY_GRANT",
-            amount: 250,
-            balanceAfter: workspace.creditBalance,
-            idempotencyKey: grantKey,
-            description: "Starter credits activated after email verification",
-          },
-        });
-      }
-    }
+    await grantStarterCreditsAfterVerification(tx, user.id);
     await tx.verificationToken.delete({
       where: { identifier_token: { identifier, token } },
     });
   });
   return user.id;
+}
+
+export async function synchronizeFirebaseEmailVerification(userId: string) {
+  if (!(await firebaseEmailIsVerified(userId))) return false;
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { emailVerified: true },
+  });
+  if (!user) return false;
+  if (user.emailVerified) return true;
+
+  await db.$transaction(async (tx) => {
+    const current = await tx.user.findUnique({
+      where: { id: userId },
+      select: { emailVerified: true },
+    });
+    if (!current?.emailVerified) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { emailVerified: new Date(), sessionVersion: { increment: 1 } },
+      });
+      await grantStarterCreditsAfterVerification(tx, userId);
+    }
+  });
+  return true;
 }
 
 export async function ensureWorkspaceForUser(

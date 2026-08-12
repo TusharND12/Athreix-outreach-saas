@@ -9,9 +9,11 @@ export const metadata: Metadata = {
 };
 
 export default function SignupPage() {
-  const termsVersion = process.env.TERMS_VERSION ?? "2026-07-20";
+  const termsVersion = process.env.TERMS_VERSION ?? "2026-08-11";
   const responsibleUseVersion =
-    process.env.RESPONSIBLE_USE_VERSION ?? "2026-07-20";
+    process.env.RESPONSIBLE_USE_VERSION ?? "2026-08-11";
+  const privacyNoticeVersion =
+    process.env.PRIVACY_NOTICE_VERSION ?? "2026-08-11";
   const demoMode =
     process.env.DEMO_MODE === "true" ||
     (process.env.NODE_ENV !== "production" && !process.env.FIREBASE_PROJECT_ID);
@@ -23,6 +25,7 @@ export default function SignupPage() {
       <SignupForm
         termsVersion={termsVersion}
         responsibleUseVersion={responsibleUseVersion}
+        privacyNoticeVersion={privacyNoticeVersion}
         demoMode={demoMode}
       />
     </AuthShell>

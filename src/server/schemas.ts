@@ -215,4 +215,8 @@ export const registerSchema = z.object({
     responsibleUseVersion: z.string().min(1).max(50),
     accepted: z.literal(true),
   }),
+  privacyConsent: z.object({
+    noticeVersion: z.string().min(1).max(50),
+    accepted: z.literal(true),
+  }),
 });
