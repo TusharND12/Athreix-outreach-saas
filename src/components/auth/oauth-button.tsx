@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 function GoogleButton({
   label,
   callbackUrl = "/search",
+  onBeforeSignIn,
 }: {
   label: string;
   callbackUrl?: string;
+  onBeforeSignIn?: () => Promise<boolean>;
 }) {
   const [loading, setLoading] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
@@ -27,6 +29,10 @@ function GoogleButton({
           setFailed(false);
           setLoading(true);
           try {
+            if (onBeforeSignIn && !(await onBeforeSignIn())) {
+              setLoading(false);
+              return;
+            }
             await signIn("google", { redirectTo: callbackUrl });
           } catch {
             setLoading(false);
@@ -72,10 +78,12 @@ export function OAuthSection({
   label,
   callbackUrl = "/search",
   consentNotice,
+  onBeforeSignIn,
 }: {
   label: string;
   callbackUrl?: string;
   consentNotice?: React.ReactNode;
+  onBeforeSignIn?: () => Promise<boolean>;
 }) {
   const [googleAvailable, setGoogleAvailable] = React.useState<boolean | null>(
     null,
@@ -108,7 +116,11 @@ export function OAuthSection({
 
   return (
     <>
-      <GoogleButton label={label} callbackUrl={callbackUrl} />
+      <GoogleButton
+        label={label}
+        callbackUrl={callbackUrl}
+        onBeforeSignIn={onBeforeSignIn}
+      />
       {consentNotice}
       <FormDivider />
     </>

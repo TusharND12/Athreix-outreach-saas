@@ -8,6 +8,7 @@ import { CheckCircle2, Mail, RefreshCw, TriangleAlert } from "lucide-react";
 import { z } from "zod";
 
 import { FormField, PasswordField } from "@/components/auth/form-field";
+import { DataProcessingConsent } from "@/components/auth/data-processing-consent";
 import { OAuthSection } from "@/components/auth/oauth-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,12 @@ const schema = z.object({
       (value) => value,
       "Accept the Terms and Responsible Use Policy to continue.",
     ),
+  privacyConsent: z
+    .boolean()
+    .refine(
+      (value) => value,
+      "Give data-processing consent to create or access an account.",
+    ),
 });
 
 type SignupValues = z.infer<typeof schema>;
@@ -40,10 +47,12 @@ type SignupValues = z.infer<typeof schema>;
 export function SignupForm({
   termsVersion,
   responsibleUseVersion,
+  privacyNoticeVersion,
   demoMode = false,
 }: {
   termsVersion: string;
   responsibleUseVersion: string;
+  privacyNoticeVersion: string;
   demoMode?: boolean;
 }) {
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -60,13 +69,50 @@ export function SignupForm({
     register,
     handleSubmit,
     setValue,
+    trigger,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<SignupValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", email: "", password: "", accepted: false },
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      accepted: false,
+      privacyConsent: false,
+    },
   });
   const accepted = watch("accepted");
+  const privacyConsent = watch("privacyConsent");
+
+  const prepareGoogleConsent = async () => {
+    setFormError(null);
+    if (!(await trigger("privacyConsent"))) return false;
+    try {
+      const response = await fetch("/api/auth/privacy-consent-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          noticeVersion: privacyNoticeVersion,
+          accepted: true,
+        }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        setFormError(
+          payload?.error?.message ??
+            "Data-processing consent could not be recorded. Try again.",
+        );
+        return false;
+      }
+      return true;
+    } catch {
+      setFormError("Data-processing consent could not be recorded. Try again.");
+      return false;
+    }
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
@@ -81,6 +127,10 @@ export function SignupForm({
           legalAcceptance: {
             termsVersion,
             responsibleUseVersion,
+            accepted: true,
+          },
+          privacyConsent: {
+            noticeVersion: privacyNoticeVersion,
             accepted: true,
           },
         }),
@@ -264,8 +314,18 @@ export function SignupForm({
 
   return (
     <>
+      <DataProcessingConsent
+        id="signup-privacy-consent"
+        checked={privacyConsent}
+        noticeVersion={privacyNoticeVersion}
+        error={errors.privacyConsent?.message}
+        onCheckedChange={(checked) =>
+          setValue("privacyConsent", checked, { shouldValidate: true })
+        }
+      />
       <OAuthSection
         label="Sign up with Google"
+        onBeforeSignIn={prepareGoogleConsent}
         consentNotice={
           <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
             By continuing with Google, you agree to the{" "}

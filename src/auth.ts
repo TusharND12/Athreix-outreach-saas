@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { cookies } from "next/headers";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 import { db } from "@/lib/server/db";
@@ -15,11 +16,58 @@ import {
 } from "@/server/auth-service";
 import { enforceRateLimit } from "@/lib/server/rate-limit";
 import { hashIdentifier } from "@/lib/server/crypto";
+import {
+  PRIVACY_CONSENT_DATA,
+  PRIVACY_CONSENT_PURPOSES,
+} from "@/lib/privacy-consent";
+import {
+  PRIVACY_CONSENT_INTENT_COOKIE,
+  verifyPrivacyConsentIntent,
+} from "@/lib/server/privacy-consent";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
+  privacyConsent: z.literal("true"),
+  privacyNoticeVersion: z.string().min(1).max(50),
 });
+
+async function recordPrivacyConsent(input: {
+  userId: string;
+  method: "email_signin" | "google_oauth";
+  noticeVersion: string;
+  ipHash: string;
+  userAgent?: string;
+  intentId?: string;
+}) {
+  if (!env.databaseEnabled || input.userId === "demo-user") return;
+  const membership = await db.workspaceMember.findFirst({
+    where: { userId: input.userId, isActive: true },
+    orderBy: { createdAt: "asc" },
+    select: { workspaceId: true },
+  });
+  if (!membership) return;
+  await db.auditLog.create({
+    data: {
+      workspaceId: membership.workspaceId,
+      actorId: input.userId,
+      action: "account.privacy_consent",
+      entityType: "user",
+      entityId: input.userId,
+      ipHash: input.ipHash,
+      userAgent: input.userAgent,
+      metadata: {
+        method: input.method,
+        noticeVersion: input.noticeVersion,
+        acceptedAt: new Date().toISOString(),
+        dataCategories: PRIVACY_CONSENT_DATA.map((item) => item.id),
+        purposes: [...PRIVACY_CONSENT_PURPOSES],
+        affirmativeAction: "unchecked_checkbox_selected",
+        ...(input.intentId ? { intentId: input.intentId } : {}),
+      },
+    },
+  });
+}
 
 const providers = [
   Credentials({
@@ -27,11 +75,16 @@ const providers = [
     credentials: {
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
+      privacyConsent: { label: "Privacy consent", type: "text" },
+      privacyNoticeVersion: { label: "Privacy notice version", type: "text" },
     },
     async authorize(rawCredentials, request) {
       const parsed = credentialsSchema.safeParse(rawCredentials);
       if (!parsed.success) return null;
       const email = parsed.data.email.toLowerCase();
+      if (parsed.data.privacyNoticeVersion !== env.PRIVACY_NOTICE_VERSION) {
+        return null;
+      }
       if (env.NODE_ENV === "production" && !env.authHardened) return null;
       const forwarded = request.headers
         .get("x-forwarded-for")
@@ -84,6 +137,14 @@ const providers = [
           user.approvalStatus !== "APPROVED")
       )
         return null;
+      await recordPrivacyConsent({
+        userId: user.id,
+        method: "email_signin",
+        noticeVersion: parsed.data.privacyNoticeVersion,
+        ipHash: hashIdentifier(ip),
+        userAgent:
+          request.headers.get("user-agent")?.slice(0, 300) ?? undefined,
+      });
       return {
         id: user.id,
         email: user.email,
@@ -113,6 +174,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
   pages: { signIn: "/login", error: "/login" },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider !== "google") return true;
+      const cookieStore = await cookies();
+      const consent = verifyPrivacyConsentIntent(
+        cookieStore.get(PRIVACY_CONSENT_INTENT_COOKIE)?.value,
+      );
+      return Boolean(consent && user.id);
+    },
     async jwt({ token, user }) {
       if (env.NODE_ENV === "production" && !env.authHardened) {
         token.authInvalid = true;
@@ -191,6 +260,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   events: {
+    async signIn({ user, account }) {
+      if (account?.provider !== "google" || !user.id) return;
+      const cookieStore = await cookies();
+      const consent = verifyPrivacyConsentIntent(
+        cookieStore.get(PRIVACY_CONSENT_INTENT_COOKIE)?.value,
+      );
+      if (!consent) return;
+      await ensureWorkspaceForUser(user.id, user.name);
+      await recordPrivacyConsent({
+        userId: user.id,
+        method: "google_oauth",
+        noticeVersion: consent.noticeVersion,
+        ipHash: consent.ipHash,
+        intentId: consent.intentId,
+      });
+      cookieStore.set({
+        name: PRIVACY_CONSENT_INTENT_COOKIE,
+        value: "",
+        path: "/api/auth",
+        maxAge: 0,
+      });
+    },
     async createUser({ user }) {
       if (user.id) {
         const shouldBootstrapAdmin = Boolean(

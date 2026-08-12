@@ -16,6 +16,11 @@ async function signInAsDemoAdmin(page: Page) {
   await page
     .getByRole("button", { name: "Fill demo account credentials" })
     .click();
+  await page
+    .getByRole("checkbox", {
+      name: /I freely give this specific consent/i,
+    })
+    .click();
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/search$/);
   await expect(
@@ -74,10 +79,24 @@ test.describe("public experience", () => {
     await expect(
       page.getByRole("link", { name: /Responsible Use/i }).first(),
     ).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "DPDP data-processing consent" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("checkbox", {
+        name: /I freely give this specific consent/i,
+      }),
+    ).not.toBeChecked();
+    await expect(
+      page.getByRole("link", { name: "Privacy Notice" }),
+    ).toBeVisible();
 
     await page.goto("/login");
     await expect(
       page.getByRole("heading", { name: "Welcome back" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "DPDP data-processing consent" }),
     ).toBeVisible();
     await page.getByRole("link", { name: "Forgot password?" }).click();
     await expect(

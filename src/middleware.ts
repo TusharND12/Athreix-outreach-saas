@@ -22,6 +22,7 @@ export async function middleware(request: NextRequest) {
       "/api/auth/reset-password",
       "/api/auth/verify-email",
       "/api/auth/resend-verification",
+      "/api/auth/privacy-consent-intent",
     ].includes(request.nextUrl.pathname);
     const authJsManaged =
       request.nextUrl.pathname.startsWith("/api/auth/") && !customAuthMutation;

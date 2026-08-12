@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { FormField, PasswordField } from "@/components/auth/form-field";
+import { DataProcessingConsent } from "@/components/auth/data-processing-consent";
 import { OAuthSection } from "@/components/auth/oauth-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,22 +17,29 @@ import { Button } from "@/components/ui/button";
 const schema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
   password: z.string().min(1, "Enter your password."),
+  privacyConsent: z
+    .boolean()
+    .refine((value) => value, "Give data-processing consent to sign in."),
 });
 
 type LoginValues = z.infer<typeof schema>;
 
 export function LoginForm({
   callbackUrl = "/search",
+  privacyNoticeVersion,
   demoCredentials,
   accountCreated = false,
   emailVerified = false,
   pendingApproval = false,
+  consentWithdrawn = false,
 }: {
   callbackUrl?: string;
+  privacyNoticeVersion: string;
   demoCredentials?: { email: string; password: string };
   accountCreated?: boolean;
   emailVerified?: boolean;
   pendingApproval?: boolean;
+  consentWithdrawn?: boolean;
 }) {
   const router = useRouter();
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -43,11 +51,43 @@ export function LoginForm({
     register,
     handleSubmit,
     setValue,
+    trigger,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", privacyConsent: false },
   });
+  const privacyConsent = watch("privacyConsent");
+
+  const prepareGoogleConsent = async () => {
+    setFormError(null);
+    if (!(await trigger("privacyConsent"))) return false;
+    try {
+      const response = await fetch("/api/auth/privacy-consent-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          noticeVersion: privacyNoticeVersion,
+          accepted: true,
+        }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        setFormError(
+          payload?.error?.message ??
+            "Data-processing consent could not be recorded. Try again.",
+        );
+        return false;
+      }
+      return true;
+    } catch {
+      setFormError("Data-processing consent could not be recorded. Try again.");
+      return false;
+    }
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
@@ -55,6 +95,8 @@ export function LoginForm({
       const result = await signIn("credentials", {
         email: values.email,
         password: values.password,
+        privacyConsent: "true",
+        privacyNoticeVersion,
         redirect: false,
       });
 
@@ -100,9 +142,28 @@ export function LoginForm({
           </AlertDescription>
         </Alert>
       ) : null}
+      {consentWithdrawn ? (
+        <Alert variant="info" className="mb-5">
+          <AlertDescription>
+            Your data-processing consent was withdrawn, application sessions
+            were revoked, and a restriction request was recorded. Contact
+            tech@athreix.com if you need help.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <DataProcessingConsent
+        id="login-privacy-consent"
+        checked={privacyConsent}
+        noticeVersion={privacyNoticeVersion}
+        error={errors.privacyConsent?.message}
+        onCheckedChange={(checked) =>
+          setValue("privacyConsent", checked, { shouldValidate: true })
+        }
+      />
       <OAuthSection
         label="Continue with Google"
         callbackUrl={safeCallback}
+        onBeforeSignIn={prepareGoogleConsent}
         consentNotice={
           <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
             By continuing with Google, you agree to the{" "}

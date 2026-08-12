@@ -131,9 +131,9 @@ const sections: LegalSection[] = [
         <p>
           To submit a rights or suppression request involving Athreix, contact
           the relevant workspace owner and email{" "}
-          <a href="mailto:privacy@athreix.ai">privacy@athreix.ai</a>. Include
-          enough context to locate the record, but do not send unnecessary
-          identity documents by ordinary email.
+          <a href="mailto:tech@athreix.com">tech@athreix.com</a>. Include enough
+          context to locate the record, but do not send unnecessary identity
+          documents by ordinary email.
         </p>
       </>
     ),

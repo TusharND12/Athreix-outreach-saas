@@ -8,6 +8,10 @@ import {
   firebaseEmailIsVerified,
   markFirebaseEmailVerified,
 } from "@/lib/server/firebase-auth";
+import {
+  PRIVACY_CONSENT_DATA,
+  PRIVACY_CONSENT_PURPOSES,
+} from "@/lib/privacy-consent";
 
 export async function registerUser(input: {
   name: string;
@@ -17,6 +21,14 @@ export async function registerUser(input: {
     termsVersion: string;
     responsibleUseVersion: string;
     accepted: true;
+  };
+  privacyConsent: {
+    noticeVersion: string;
+    accepted: true;
+  };
+  consentEvidence: {
+    ipHash: string;
+    userAgent?: string;
   };
 }) {
   if (!env.databaseEnabled) {
@@ -99,6 +111,25 @@ export async function registerUser(input: {
             termsVersion: input.legalAcceptance.termsVersion,
             responsibleUseVersion: input.legalAcceptance.responsibleUseVersion,
             acceptedAt: new Date().toISOString(),
+          },
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          workspaceId: workspace.id,
+          actorId: user.id,
+          action: "account.privacy_consent",
+          entityType: "user",
+          entityId: user.id,
+          ipHash: input.consentEvidence.ipHash,
+          userAgent: input.consentEvidence.userAgent,
+          metadata: {
+            method: "email_signup",
+            noticeVersion: input.privacyConsent.noticeVersion,
+            acceptedAt: new Date().toISOString(),
+            dataCategories: PRIVACY_CONSENT_DATA.map((item) => item.id),
+            purposes: [...PRIVACY_CONSENT_PURPOSES],
+            affirmativeAction: "unchecked_checkbox_selected",
           },
         },
       });

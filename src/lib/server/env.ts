@@ -111,6 +111,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_LIVE_DATA_ONLY: z.enum(["true", "false"]).optional(),
   TERMS_VERSION: z.string().min(1).default("2026-08-11"),
   RESPONSIBLE_USE_VERSION: z.string().min(1).default("2026-08-11"),
+  PRIVACY_NOTICE_VERSION: z.string().min(1).default("2026-08-11"),
   ADMIN_EMAILS: z.string().optional(),
 });
 

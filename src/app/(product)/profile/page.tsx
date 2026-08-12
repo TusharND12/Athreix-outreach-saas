@@ -11,6 +11,7 @@ import {
   Save,
   ShieldCheck,
   Trash2,
+  UserX,
 } from "lucide-react";
 import {
   Button,
@@ -50,6 +51,7 @@ export default function ProfilePage() {
   const [deletionConfirmation, setDeletionConfirmation] = useState("");
   const [deletionRequesting, setDeletionRequesting] = useState(false);
   const [revokingSessions, setRevokingSessions] = useState(false);
+  const [withdrawingConsent, setWithdrawingConsent] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -182,6 +184,33 @@ export default function ProfilePage() {
       );
     } finally {
       setDeletionRequesting(false);
+    }
+  };
+
+  const withdrawDataProcessingConsent = async () => {
+    if (
+      !window.confirm(
+        "Withdraw consent and sign out? Athreix will restrict account processing and queue deletion subject to legal retention duties.",
+      )
+    ) {
+      return;
+    }
+    setWithdrawingConsent(true);
+    setError("");
+    try {
+      await requestOrFallback(
+        "/api/privacy/consent",
+        { data: { withdrawn: true } },
+        { method: "POST" },
+      );
+      await signOut({ callbackUrl: "/login?consent=withdrawn" });
+    } catch (withdrawalError) {
+      setError(
+        withdrawalError instanceof Error
+          ? withdrawalError.message
+          : "Consent could not be withdrawn.",
+      );
+      setWithdrawingConsent(false);
     }
   };
 
@@ -331,6 +360,22 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </div>
+          </Surface>
+
+          <Surface className="border-amber-200 p-5 sm:p-7 dark:border-amber-900">
+            <SectionHeading
+              title="DPDP data-processing consent"
+              description="Withdraw the consent used for account access and requested Athreix features. This immediately revokes application sessions and opens an audited restriction request. Records required for security, disputes, billing, or law may still be retained."
+            />
+            <Button
+              className="mt-5"
+              variant="secondary"
+              loading={withdrawingConsent}
+              onClick={() => void withdrawDataProcessingConsent()}
+            >
+              <UserX className="size-4" />
+              Withdraw consent and sign out
+            </Button>
           </Surface>
 
           <Surface className="border-red-200 p-5 sm:p-7 dark:border-red-900">

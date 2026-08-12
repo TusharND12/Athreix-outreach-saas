@@ -114,6 +114,21 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: TERMS_VERSION
+    value: "2026-08-11"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: RESPONSIBLE_USE_VERSION
+    value: "2026-08-11"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: PRIVACY_NOTICE_VERSION
+    value: "2026-08-11"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: AUTH_SECRET
     secret: ATHREIX_AUTH_SECRET
   - variable: FIELD_ENCRYPTION_KEY

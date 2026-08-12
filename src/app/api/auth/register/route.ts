@@ -18,15 +18,16 @@ export async function POST(request: Request) {
     if (
       input.legalAcceptance.termsVersion !== env.TERMS_VERSION ||
       input.legalAcceptance.responsibleUseVersion !==
-        env.RESPONSIBLE_USE_VERSION
+        env.RESPONSIBLE_USE_VERSION ||
+      input.privacyConsent.noticeVersion !== env.PRIVACY_NOTICE_VERSION
     ) {
       throw new AppError(
         "LEGAL_VERSION_OUTDATED",
-        "Review and accept the current Terms and Responsible Use Policy.",
+        "Review and accept the current Terms, Responsible Use Policy, and Privacy Notice.",
         409,
       );
     }
-    const user = await registerUser(input);
+    const user = await registerUser({ ...input, consentEvidence: metadata });
     let localVerificationPath: string | undefined;
     let deliveryStatus: "sent" | "pending_retry" | "local" | "demo" = user.demo
       ? "demo"
