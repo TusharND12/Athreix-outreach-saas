@@ -47,7 +47,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://athreix-outreach--athreix-outreach-saas.us-central1.hosted.app
+    value: https://copyleads.shop
     availability:
       - BUILD
       - RUNTIME
@@ -57,7 +57,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: AUTH_URL
-    value: https://athreix-outreach--athreix-outreach-saas.us-central1.hosted.app
+    value: https://copyleads.shop
     availability:
       - RUNTIME
   - variable: AUTH_TRUST_HOST
