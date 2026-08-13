@@ -103,14 +103,7 @@ export function OAuthSection({
     };
   }, []);
 
-  if (googleAvailable === null) {
-    return (
-      <div
-        className="mb-6 h-11 animate-pulse rounded-lg bg-muted"
-        aria-label="Checking available sign-in methods"
-      />
-    );
-  }
+  if (googleAvailable === null) return null;
 
   if (!googleAvailable) return null;
 

@@ -37,6 +37,10 @@ export function MarketingFooter() {
             unsolicited mass messaging. You remain responsible for lawful use,
             source terms, consent, and suppression obligations.
           </p>
+          <p className="mt-3 max-w-md text-xs leading-5 text-muted-foreground">
+            Athreix is the product and business brand available online at
+            copyleads.shop.
+          </p>
         </div>
         <div className="grid grid-cols-2 gap-8">
           {footerGroups.map((group) => (

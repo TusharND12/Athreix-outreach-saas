@@ -168,7 +168,7 @@ export default function BillingPage() {
       }
       const client = paddle ?? (await getPaddleClient());
       if (!client) {
-        throw new Error("Paddle Sandbox checkout is not configured.");
+        throw new Error("Paddle checkout is not configured.");
       }
       const checkoutCustomer: CheckoutCustomer | undefined = payload.data
         .customer?.id
@@ -250,7 +250,7 @@ export default function BillingPage() {
     <div className="space-y-7">
       <PageHeader
         title="Billing"
-        description="Review credit tiers, subscription state, and secure Paddle Sandbox checkout. Credits are granted only after a verified completed subscription transaction."
+        description="Review credit tiers, subscription state, and secure Paddle checkout. Credits are granted only after a verified completed subscription transaction."
         meta={
           <StatusBadge tone={source === "error" ? "danger" : "neutral"}>
             {source === "loading"
@@ -279,8 +279,9 @@ export default function BillingPage() {
       {!billingReady && source !== "loading" ? (
         <InlineNotice title="Paid billing is disabled" tone="warning">
           <p>
-            Checkout remains fail-closed until the Paddle Sandbox API key,
-            client token, signed webhook, and all plan price IDs are configured.
+            Checkout remains fail-closed until the environment-matched Paddle
+            API key, client token, signed webhook, and all plan price IDs are
+            configured.
           </p>
         </InlineNotice>
       ) : null}

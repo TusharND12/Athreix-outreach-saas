@@ -23,6 +23,12 @@ const sections: LegalSection[] = [
           <a href="/responsible-use">Responsible Use Policy</a>.
         </p>
         <p>
+          Athreix is the business and product brand under which the Service is
+          offered. The Service operates online at copyleads.shop; references to
+          “Athreix,” “we,” “us,” or “our” in these terms refer to the operator
+          of that brand and Service.
+        </p>
+        <p>
           You must be at least 18, legally able to enter a binding agreement,
           and use the Service for legitimate professional purposes. If you use
           the Service for an organization, you confirm that you have authority

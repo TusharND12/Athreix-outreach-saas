@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
+import TermsPage from "@/app/(marketing)/terms/page";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 
 describe("public legal navigation", () => {
@@ -49,5 +50,14 @@ describe("public legal navigation", () => {
     } else {
       process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
     }
+  });
+
+  it("identifies the Athreix brand and production domain in the terms", () => {
+    render(<TermsPage />);
+
+    expect(
+      screen.getByText(/Athreix is the business and product brand/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/copyleads\.shop/i)).toBeInTheDocument();
   });
 });

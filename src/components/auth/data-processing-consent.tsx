@@ -23,16 +23,45 @@ export function DataProcessingConsent({
   const errorId = `${id}-error`;
 
   return (
-    <fieldset className="mb-5 rounded-xl border bg-muted/35 p-4">
-      <legend className="px-1 text-sm font-semibold text-foreground">
-        DPDP data-processing consent
-      </legend>
-      <div id={descriptionId} className="space-y-3 text-xs leading-5">
-        <p className="text-muted-foreground">
-          To create or access your account and provide the features you request,
-          Athreix processes:
+    <fieldset className="mb-4 rounded-xl border bg-muted/35 p-3.5">
+      <legend className="sr-only">Data-processing consent</legend>
+      <div className="flex items-start gap-3">
+        <Checkbox
+          id={id}
+          checked={checked}
+          onCheckedChange={(value) => onCheckedChange(value === true)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={`${descriptionId}${error ? ` ${errorId}` : ""}`}
+        />
+        <Label htmlFor={id} className="text-xs leading-5 text-muted-foreground">
+          I consent to Athreix processing account and requested-service data,
+          plus Paddle billing references if I buy a plan, to provide and secure
+          the features I use, as described in the{" "}
+          <Link
+            href="/privacy"
+            target="_blank"
+            className="font-semibold text-foreground underline underline-offset-3"
+          >
+            Privacy Notice
+          </Link>
+          .
+        </Label>
+      </div>
+      <p id={descriptionId} className="sr-only">
+        You may withdraw consent from Profile or by emailing tech@athreix.com.
+        Required processing will stop and account access may end. Notice version{" "}
+        {noticeVersion}.
+      </p>
+      <details className="group mt-2 pl-7 text-[0.6875rem] leading-4 text-muted-foreground">
+        <summary className="cursor-pointer font-semibold text-foreground underline decoration-border underline-offset-3">
+          What data Athreix processes
+        </summary>
+        <p className="mt-2 border-t pt-2">
+          You may withdraw consent from Profile or by emailing tech@athreix.com.
+          Required processing will stop and account access may end. Notice
+          version {noticeVersion}.
         </p>
-        <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
+        <ul className="mt-2 space-y-1.5">
           {PRIVACY_CONSENT_DATA.map((item) => (
             <li key={item.id}>
               <strong className="font-semibold text-foreground">
@@ -42,44 +71,12 @@ export function DataProcessingConsent({
             </li>
           ))}
         </ul>
-        <p className="text-muted-foreground">
-          We use this data to authenticate and secure your workspace, deliver
-          requested research, list and export features, and manage credits,
-          subscriptions and support. Read the{" "}
-          <Link
-            href="/privacy"
-            target="_blank"
-            className="font-semibold text-foreground underline underline-offset-3"
-          >
-            Privacy Notice
-          </Link>
-          . You may withdraw consent through your Profile privacy controls or by
-          emailing{" "}
-          <a
-            href="mailto:tech@athreix.com"
-            className="font-semibold text-foreground underline underline-offset-3"
-          >
-            tech@athreix.com
-          </a>
-          ; withdrawing processing needed for the Service may end account
-          access. Notice version {noticeVersion}.
-        </p>
-      </div>
-      <div className="mt-4 flex items-start gap-3 border-t pt-4">
-        <Checkbox
-          id={id}
-          checked={checked}
-          onCheckedChange={(value) => onCheckedChange(value === true)}
-          aria-invalid={Boolean(error)}
-          aria-describedby={`${descriptionId}${error ? ` ${errorId}` : ""}`}
-        />
-        <Label htmlFor={id} className="text-xs leading-5 text-muted-foreground">
-          I freely give this specific consent for the data and purposes listed
-          above.
-        </Label>
-      </div>
+      </details>
       {error ? (
-        <p id={errorId} className="mt-2 text-xs font-medium text-destructive">
+        <p
+          id={errorId}
+          className="mt-2 pl-7 text-xs font-medium text-destructive"
+        >
           {error}
         </p>
       ) : null}

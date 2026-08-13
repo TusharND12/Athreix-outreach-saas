@@ -18,7 +18,7 @@ async function signInAsDemoAdmin(page: Page) {
     .click();
   await page
     .getByRole("checkbox", {
-      name: /I freely give this specific consent/i,
+      name: /I consent to Athreix processing/i,
     })
     .click();
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -80,11 +80,11 @@ test.describe("public experience", () => {
       page.getByRole("link", { name: /Responsible Use/i }).first(),
     ).toBeVisible();
     await expect(
-      page.getByRole("group", { name: "DPDP data-processing consent" }),
+      page.getByRole("group", { name: "Data-processing consent" }),
     ).toBeVisible();
     await expect(
       page.getByRole("checkbox", {
-        name: /I freely give this specific consent/i,
+        name: /I consent to Athreix processing/i,
       }),
     ).not.toBeChecked();
     await expect(
@@ -96,7 +96,7 @@ test.describe("public experience", () => {
       page.getByRole("heading", { name: "Welcome back" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("group", { name: "DPDP data-processing consent" }),
+      page.getByRole("group", { name: "Data-processing consent" }),
     ).toBeVisible();
     await page.getByRole("link", { name: "Forgot password?" }).click();
     await expect(

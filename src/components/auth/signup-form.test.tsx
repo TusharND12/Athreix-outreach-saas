@@ -87,7 +87,7 @@ describe("authentication recovery and acceptance", () => {
     );
     await user.click(
       screen.getByRole("checkbox", {
-        name: /I freely give this specific consent/i,
+        name: /I consent to Athreix processing/i,
       }),
     );
     await user.click(
@@ -153,10 +153,14 @@ describe("authentication recovery and acceptance", () => {
     expect(
       await screen.findByText("Give data-processing consent to sign in."),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("DPDP data-processing consent"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("What data Athreix processes")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("checkbox", {
-        name: /I freely give this specific consent/i,
+        name: /I consent to Athreix processing/i,
       }),
     );
     await user.click(screen.getByRole("button", { name: "Sign in" }));
@@ -189,7 +193,7 @@ describe("authentication recovery and acceptance", () => {
 
     await user.click(
       screen.getByRole("checkbox", {
-        name: /I freely give this specific consent/i,
+        name: /I consent to Athreix processing/i,
       }),
     );
     await user.click(
