@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Search,
   SlidersHorizontal,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import { LeadDrawer } from "@/components/data/lead-drawer";
@@ -95,6 +96,7 @@ export default function SearchResultsPage() {
   const [retentionDays, setRetentionDays] = useState(30);
   const [targetCount, setTargetCount] = useState<number | undefined>();
   const [chargedCredits, setChargedCredits] = useState<number | undefined>();
+  const [searchStatus, setSearchStatus] = useState("");
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [source, setSource] = useState<"loading" | "live" | "demo" | "error">(
     "loading",
@@ -165,6 +167,7 @@ export default function SearchResultsPage() {
         setBrief(search?.query ?? "");
         setRetentionDays(search?.retentionDays ?? 30);
         setTargetCount(search?.targetCount);
+        setSearchStatus((search?.status ?? status).toUpperCase());
         setChargedCredits(
           search?.chargedCredits && search.chargedCredits > 0
             ? search.chargedCredits
@@ -487,6 +490,12 @@ export default function SearchResultsPage() {
       </Surface>
     );
 
+  const partialDelivery =
+    searchStatus === "PARTIAL" ||
+    ((source === "live" || source === "demo") &&
+      targetCount !== undefined &&
+      resultStats.totalProspects < targetCount);
+
   if (processing) {
     return (
       <div className="space-y-6">
@@ -540,15 +549,25 @@ export default function SearchResultsPage() {
                   ? "danger"
                   : source === "loading"
                     ? "neutral"
-                    : "success"
+                    : partialDelivery
+                      ? "warning"
+                      : "success"
               }
             >
-              {source !== "error" ? <Check className="size-3" /> : null}
+              {source !== "error" ? (
+                partialDelivery ? (
+                  <TriangleAlert className="size-3" />
+                ) : (
+                  <Check className="size-3" />
+                )
+              ) : null}
               {source === "loading"
                 ? "Loading"
                 : source === "error"
                   ? "Unavailable"
-                  : "Complete"}
+                  : partialDelivery
+                    ? "Partial"
+                    : "Complete"}
             </StatusBadge>
             <StatusBadge tone={mode === "b2c" ? "warning" : "neutral"}>
               {mode.toUpperCase()}
@@ -595,6 +614,7 @@ export default function SearchResultsPage() {
           count={resultStats.totalProspects}
           chargedCredits={chargedCredits}
           targetCount={targetCount}
+          status={partialDelivery ? "PARTIAL" : searchStatus}
         />
       ) : null}
 

@@ -1,4 +1,4 @@
-const MAX_PROVIDER_CANDIDATES = 1_000;
+export const MAX_PROVIDER_CANDIDATES = 1_000;
 
 function normalizedTargetCount(targetCount: number) {
   if (!Number.isFinite(targetCount)) return 1;
@@ -19,8 +19,24 @@ export function candidateCollectionTarget(
     Number.isFinite(configuredThreshold)
       ? configuredThreshold
       : 0;
-  const multiplier = scoreThreshold >= 80 ? 5 : scoreThreshold >= 65 ? 3 : 2;
+  // Qualification, suppression, structured filters, and identity deduplication
+  // all happen after collection.  A deep initial pool avoids treating a thin
+  // provider sample as genuine source exhaustion.
+  const multiplier = scoreThreshold >= 80 ? 15 : scoreThreshold >= 65 ? 12 : 10;
   return Math.min(MAX_PROVIDER_CANDIDATES, requested * multiplier);
+}
+
+export function candidateRefillTarget(input: {
+  delivered: number;
+  requested: number;
+  received: number;
+  candidateTarget: number;
+}) {
+  const requested = normalizedTargetCount(input.requested);
+  if (input.delivered >= requested) return null;
+  if (input.candidateTarget >= MAX_PROVIDER_CANDIDATES) return null;
+  if (input.received < input.candidateTarget) return null;
+  return MAX_PROVIDER_CANDIDATES;
 }
 
 export function meetsScoreThreshold(

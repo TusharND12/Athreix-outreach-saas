@@ -605,15 +605,18 @@ export function normalizeProspect(
   };
 }
 
+export function prospectIdentityKey(item: NormalizedProspect) {
+  return item.mode === "B2B"
+    ? `${item.company.domain ?? item.company.normalizedName}:${item.contact.email ?? item.contact.normalizedName}`
+    : (item.consumer.email ??
+        item.consumer.phone ??
+        `${item.consumer.normalizedName}:${item.consumer.location}`);
+}
+
 export function dedupeProspects(items: NormalizedProspect[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
-    const key =
-      item.mode === "B2B"
-        ? `${item.company.domain ?? item.company.normalizedName}:${item.contact.email ?? item.contact.normalizedName}`
-        : (item.consumer.email ??
-          item.consumer.phone ??
-          `${item.consumer.normalizedName}:${item.consumer.location}`);
+    const key = prospectIdentityKey(item);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

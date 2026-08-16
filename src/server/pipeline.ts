@@ -20,6 +20,7 @@ import type {
 import {
   dedupeProspects,
   normalizeProspect,
+  prospectIdentityKey,
   type NormalizedProspect,
 } from "@/server/normalize";
 import { scoreProspect, type ScoreResult } from "@/server/scoring";
@@ -30,6 +31,7 @@ import { persistCompanyIntelligence } from "@/server/company-intelligence";
 import { structuredFilterDecision } from "@/server/filtering";
 import {
   candidateCollectionTarget,
+  candidateRefillTarget,
   meetsScoreThreshold,
 } from "@/server/qualification";
 import {
@@ -104,6 +106,53 @@ function provider(): ProspectProvider {
   if (env.apifyEnabled) return new ApifyProspectProvider();
   if (env.mockDataEnabled) return new DemoProspectProvider();
   throw new Error("Prospect provider is not configured");
+}
+
+async function ensureDataSourceRecord(
+  search: Awaited<ReturnType<typeof db.search.findUniqueOrThrow>>,
+  provenance: SourceProvenance,
+) {
+  const payloadHash = hashIdentifier(
+    [
+      search.id,
+      provenance.provider,
+      provenance.actorId,
+      provenance.runId,
+      provenance.datasetId,
+    ]
+      .filter(Boolean)
+      .join(":"),
+  );
+  const existing = await db.dataSourceRecord.findFirst({
+    where: {
+      searchId: search.id,
+      provider: provenance.provider,
+      payloadHash,
+    },
+    select: { id: true },
+  });
+  if (existing) return existing;
+  return db.dataSourceRecord.create({
+    data: {
+      workspaceId: search.workspaceId,
+      searchId: search.id,
+      subjectType: search.mode === "B2B" ? "PROFESSIONAL_CONTACT" : "CONSUMER",
+      sourceType: provenance.sourceType,
+      provider: provenance.provider,
+      externalId: provenance.runId,
+      sourceUrl: provenance.sourceUrl,
+      actorId: provenance.actorId,
+      actorCreator: provenance.actorCreator,
+      permissionReview: provenance.permissionReview as
+        Prisma.InputJsonValue | undefined,
+      datasetId: provenance.datasetId,
+      termsVersion: provenance.permissionReview?.termsVersion,
+      collectedAt: new Date(provenance.collectedAt),
+      permittedPurpose: search.purpose,
+      retentionUntil: search.retentionUntil,
+      payloadHash,
+    },
+  });
 }
 
 function permissionHasReachableChannel(
@@ -1316,7 +1365,11 @@ export async function processSearchJob(payload: {
     where: { id: payload.jobId },
   });
   let fetchedProvenance: SourceProvenance | undefined;
-  if (currentJob.status === "COMPLETE" || search.status === "COMPLETE") {
+  if (
+    currentJob.status === "COMPLETE" ||
+    search.status === "COMPLETE" ||
+    search.status === "PARTIAL"
+  ) {
     return {
       resultCount: await db.searchResult.count({
         where: { searchId: search.id },
@@ -1356,147 +1409,23 @@ export async function processSearchJob(payload: {
       data: { status: "RUNNING" },
     });
     await updateJob(payload.jobId, runToken, "SEARCHING_COMPANIES", 5);
-    const providerTargetCount = candidateCollectionTarget(
+    const filters = (search.filters ?? {}) as Record<string, unknown>;
+    const initialProviderTarget = candidateCollectionTarget(
       search.targetCount,
-      (search.filters ?? {}) as Record<string, unknown>,
+      filters,
     );
-    const source = await provider().search({
-      workspaceId: search.workspaceId,
-      mode: search.mode,
-      query: search.query,
-      purpose: search.purpose,
-      lawfulBasis: search.lawfulBasis ?? undefined,
-      audienceSource:
-        search.audienceSource === "FIRST_PARTY_UPLOAD" ||
-        search.audienceSource === "PERMISSIONED_PARTNER"
-          ? search.audienceSource
-          : undefined,
-      audienceSourceReference: search.audienceSourceReference ?? undefined,
-      jurisdiction: search.jurisdiction ?? undefined,
-      filters: (search.filters ?? {}) as Record<string, unknown>,
-      targetCount: providerTargetCount,
-      checkpoint:
-        currentJob.provider === "apify" &&
-        currentJob.externalRunId &&
-        currentJob.externalDatasetId
-          ? {
-              provider: "apify",
-              runId: currentJob.externalRunId,
-              datasetId: currentJob.externalDatasetId,
-            }
-          : undefined,
-    });
-    fetchedProvenance = source.provenance;
-    if (source.provenance.provider === "apify") {
-      const checkpointed = await db.searchJob.updateMany({
-        where: { id: payload.jobId, status: "RUNNING", runToken },
-        data: {
-          externalRunId: source.provenance.runId,
-          externalDatasetId: source.provenance.datasetId,
-          heartbeatAt: new Date(),
-        },
-      });
-      if (!checkpointed.count)
-        throw new JobLeaseLostError("Search job lease lost");
-    }
-    const sourcePayloadHash = hashIdentifier(
-      [
-        search.id,
-        source.provenance.provider,
-        source.provenance.actorId,
-        source.provenance.runId,
-        source.provenance.datasetId,
-      ]
-        .filter(Boolean)
-        .join(":"),
-    );
-    let dataSourceRecord = await db.dataSourceRecord.findFirst({
-      where: {
-        searchId: search.id,
-        provider: source.provenance.provider,
-        payloadHash: sourcePayloadHash,
-      },
-      select: { id: true },
-    });
-    if (!dataSourceRecord) {
-      dataSourceRecord = await db.dataSourceRecord.create({
-        data: {
-          workspaceId: search.workspaceId,
-          searchId: search.id,
-          subjectType:
-            search.mode === "B2B" ? "PROFESSIONAL_CONTACT" : "CONSUMER",
-          sourceType: source.provenance.sourceType,
-          provider: source.provenance.provider,
-          externalId: source.provenance.runId,
-          sourceUrl: source.provenance.sourceUrl,
-          actorId: source.provenance.actorId,
-          actorCreator: source.provenance.actorCreator,
-          permissionReview: source.provenance.permissionReview as
-            Prisma.InputJsonValue | undefined,
-          datasetId: source.provenance.datasetId,
-          termsVersion: source.provenance.permissionReview?.termsVersion,
-          collectedAt: new Date(source.provenance.collectedAt),
-          permittedPurpose: search.purpose,
-          retentionUntil: search.retentionUntil,
-          payloadHash: sourcePayloadHash,
-        },
-      });
-    }
-    await updateJob(payload.jobId, runToken, "NORMALIZING", 35);
-    const exclusionReasons: Record<string, number> = {};
-    const parsedItems = source.items
-      .map((raw) => normalizeProspect(raw, search.mode, source.provenance))
-      .filter((item): item is NormalizedProspect => Boolean(item));
-    const prioritized = prioritizeConsumerRevocations(parsedItems);
-    for (const item of prioritized.revocations) {
-      await reconcileConsumerRevocation({
-        item,
-        search,
-        dataSourceRecordId: dataSourceRecord.id,
-      });
-      exclusionReasons.permission_negative_event =
-        (exclusionReasons.permission_negative_event ?? 0) + 1;
-    }
-    if (prioritized.candidates.length < parsedItems.length) {
-      exclusionReasons.permission_negative_identity =
-        parsedItems.length -
-        prioritized.candidates.length -
-        prioritized.revocations.length;
-    }
-    const deduped = dedupeProspects(prioritized.candidates);
-    const normalized: NormalizedProspect[] = [];
-    for (const item of deduped) {
-      const filterDecision = structuredFilterDecision(
-        item,
-        (search.filters ?? {}) as Record<string, unknown>,
-      );
-      if (!filterDecision.eligible) {
-        for (const reason of filterDecision.reasons) {
-          const key = `filter_${reason}`;
-          exclusionReasons[key] = (exclusionReasons[key] ?? 0) + 1;
-        }
-        continue;
-      }
-      if (item.mode === "B2C") {
-        const screening = screenConsumerRecord(item);
-        if (!screening.eligible) {
-          exclusionReasons[screening.reason] =
-            (exclusionReasons[screening.reason] ?? 0) + 1;
-          continue;
-        }
-        const permission = evaluateConsumerPermission(item, search.lawfulBasis);
-        if (
-          !permission.proofValid ||
-          !permissionHasReachableChannel(item, permission.channels)
-        ) {
-          exclusionReasons.invalid_or_unusable_consent =
-            (exclusionReasons.invalid_or_unusable_consent ?? 0) + 1;
-          continue;
-        }
-      }
-      normalized.push(item);
-    }
-    await updateJob(payload.jobId, runToken, "ENRICHING", 55);
+    let currentProviderTarget = initialProviderTarget;
+    let checkpoint =
+      currentJob.provider === "apify" &&
+      currentJob.externalRunId &&
+      currentJob.externalDatasetId
+        ? {
+            provider: "apify" as const,
+            runId: currentJob.externalRunId,
+            datasetId: currentJob.externalDatasetId,
+          }
+        : undefined;
+    const prospectProvider = provider();
     const existingRows = await db.searchResult.findMany({
       where: { searchId: search.id },
       select: { id: true },
@@ -1506,113 +1435,272 @@ export async function processSearchJob(payload: {
       search.targetCount,
       existingRows.map((result) => result.id),
     );
-    const analysisDeadlineAt = Date.now() + env.SEARCH_ANALYSIS_BUDGET_MS;
+    let analysisDeadlineAt: number | undefined;
     let processed = 0;
     let aiSucceeded = 0;
     let aiFallback = 0;
     let aiBudgetFallback = 0;
+    let providerPasses = 0;
+    let received = 0;
+    let deduplicated = 0;
+    let eligible = 0;
+    let providerExhausted = false;
+    const candidateTargets: number[] = [];
+    const sourceProviders = new Set<string>();
+    const seenRawHashes = new Set<string>();
+    const deliveredIdentityKeys = new Set<string>();
+    const exclusionReasons: Record<string, number> = {};
     const companyIntelligenceQueue: Array<
       Parameters<typeof persistCompanyIntelligence>[0]
     > = [];
-    for (const window of orderedWindows(
-      normalized,
-      env.OPENROUTER_ANALYSIS_WINDOW_SIZE,
-    )) {
-      if (resultBudget.full) break;
+    while (providerPasses < 2 && !resultBudget.full) {
       lease.assertActive();
-      const preparedWindow = await mapConcurrentOrdered(
-        window.items,
-        env.OPENROUTER_SCORING_CONCURRENCY,
-        (item) => prepareCandidate({ item, search, analysisDeadlineAt }),
-      );
-      for (const prepared of preparedWindow) {
-        if (resultBudget.full) break;
-        lease.assertActive();
-        processed += 1;
-        if (prepared.disposition === "excluded") {
-          exclusionReasons[prepared.reason] =
-            (exclusionReasons[prepared.reason] ?? 0) + 1;
-          continue;
-        }
-        if (prepared.disposition === "existing") {
-          await attachExistingEvidence({
-            prepared,
-            search,
-            dataSourceRecordId: dataSourceRecord.id,
-          });
-          resultBudget.add(prepared.existing.id);
-          continue;
-        }
-        if (prepared.analysis.usedFallback) {
-          aiFallback += 1;
-          if (prepared.analysis.fallbackReason === "budget_exhausted") {
-            aiBudgetFallback += 1;
-          }
-        } else {
-          aiSucceeded += 1;
-        }
-        let outcome;
-        try {
-          outcome =
-            prepared.item.mode === "B2B"
-              ? await storeB2B({
-                  item: prepared.item,
-                  search,
-                  dataSourceRecordId: dataSourceRecord.id,
-                  deterministic: prepared.deterministic,
-                  analysis: prepared.analysis,
-                  rank: resultBudget.count + 1,
-                })
-              : await storeB2C({
-                  item: prepared.item,
-                  search,
-                  dataSourceRecordId: dataSourceRecord.id,
-                  deterministic: prepared.deterministic,
-                  analysis: prepared.analysis,
-                  rank: resultBudget.count + 1,
-                });
-        } catch (error) {
-          if (error instanceof ScoreThresholdError) {
-            exclusionReasons.below_score_threshold =
-              (exclusionReasons.below_score_threshold ?? 0) + 1;
-            continue;
-          }
-          throw error;
-        }
-        if (outcome) {
-          if (prepared.item.mode === "B2B" && outcome.result.companyId) {
-            companyIntelligenceQueue.push({
-              workspaceId: search.workspaceId,
-              companyId: outcome.result.companyId,
-              searchResultId: outcome.result.id,
-              item: prepared.item,
-              deterministic: prepared.deterministic,
-              analysis: prepared.analysis,
-              query: search.query,
-              purpose: search.purpose,
-              userId: search.createdById,
-              deadlineAt: analysisDeadlineAt,
-            });
-          }
-          if (!resultBudget.add(outcome.result.id)) {
-            throw new Error("Delivered result count exceeds the target limit");
-          }
-        } else {
-          exclusionReasons.identity_or_permission_conflict =
-            (exclusionReasons.identity_or_permission_conflict ?? 0) + 1;
-        }
+      const source = await prospectProvider.search({
+        workspaceId: search.workspaceId,
+        mode: search.mode,
+        query: search.query,
+        purpose: search.purpose,
+        lawfulBasis: search.lawfulBasis ?? undefined,
+        audienceSource:
+          search.audienceSource === "FIRST_PARTY_UPLOAD" ||
+          search.audienceSource === "PERMISSIONED_PARTNER"
+            ? search.audienceSource
+            : undefined,
+        audienceSourceReference: search.audienceSourceReference ?? undefined,
+        jurisdiction: search.jurisdiction ?? undefined,
+        filters,
+        targetCount: currentProviderTarget,
+        checkpoint,
+      });
+      providerPasses += 1;
+      candidateTargets.push(currentProviderTarget);
+      received += source.items.length;
+      sourceProviders.add(source.provenance.provider);
+      fetchedProvenance = source.provenance;
+      if (source.provenance.provider === "apify") {
+        const checkpointed = await db.searchJob.updateMany({
+          where: { id: payload.jobId, status: "RUNNING", runToken },
+          data: {
+            externalRunId: source.provenance.runId,
+            externalDatasetId: source.provenance.datasetId,
+            heartbeatAt: new Date(),
+          },
+        });
+        if (!checkpointed.count)
+          throw new JobLeaseLostError("Search job lease lost");
       }
+      const dataSourceRecord = await ensureDataSourceRecord(
+        search,
+        source.provenance,
+      );
       await updateJob(
         payload.jobId,
         runToken,
-        "SCORING",
-        analysisStageProgress({
-          processed,
-          eligible: normalized.length,
-          delivered: resultBudget.count,
-          target: search.targetCount,
-        }),
+        "NORMALIZING",
+        providerPasses === 1 ? 35 : 76,
       );
+      const parsedItems = source.items
+        .map((raw) => normalizeProspect(raw, search.mode, source.provenance))
+        .filter((item): item is NormalizedProspect => Boolean(item))
+        .filter((item) => {
+          if (seenRawHashes.has(item.rawHash)) return false;
+          seenRawHashes.add(item.rawHash);
+          return true;
+        });
+      const prioritized = prioritizeConsumerRevocations(parsedItems);
+      for (const item of prioritized.revocations) {
+        await reconcileConsumerRevocation({
+          item,
+          search,
+          dataSourceRecordId: dataSourceRecord.id,
+        });
+        exclusionReasons.permission_negative_event =
+          (exclusionReasons.permission_negative_event ?? 0) + 1;
+      }
+      if (prioritized.candidates.length < parsedItems.length) {
+        exclusionReasons.permission_negative_identity =
+          (exclusionReasons.permission_negative_identity ?? 0) +
+          parsedItems.length -
+          prioritized.candidates.length -
+          prioritized.revocations.length;
+      }
+      const batchCandidates = dedupeProspects(prioritized.candidates).filter(
+        (item) => !deliveredIdentityKeys.has(prospectIdentityKey(item)),
+      );
+      deduplicated += batchCandidates.length;
+      const normalized: NormalizedProspect[] = [];
+      for (const item of batchCandidates) {
+        const filterDecision = structuredFilterDecision(item, filters);
+        if (!filterDecision.eligible) {
+          for (const reason of filterDecision.reasons) {
+            const key = `filter_${reason}`;
+            exclusionReasons[key] = (exclusionReasons[key] ?? 0) + 1;
+          }
+          continue;
+        }
+        if (item.mode === "B2C") {
+          const screening = screenConsumerRecord(item);
+          if (!screening.eligible) {
+            exclusionReasons[screening.reason] =
+              (exclusionReasons[screening.reason] ?? 0) + 1;
+            continue;
+          }
+          const permission = evaluateConsumerPermission(
+            item,
+            search.lawfulBasis,
+          );
+          if (
+            !permission.proofValid ||
+            !permissionHasReachableChannel(item, permission.channels)
+          ) {
+            exclusionReasons.invalid_or_unusable_consent =
+              (exclusionReasons.invalid_or_unusable_consent ?? 0) + 1;
+            continue;
+          }
+        }
+        normalized.push(item);
+      }
+      // Spend the bounded AI-analysis budget on the strongest deterministic
+      // matches first instead of depending on the provider's incidental order.
+      normalized.sort(
+        (left, right) =>
+          scoreProspect(right, { query: search.query, filters }).score -
+          scoreProspect(left, { query: search.query, filters }).score,
+      );
+      eligible += normalized.length;
+      await updateJob(
+        payload.jobId,
+        runToken,
+        "ENRICHING",
+        providerPasses === 1 ? 55 : 80,
+      );
+      analysisDeadlineAt ??= Date.now() + env.SEARCH_ANALYSIS_BUDGET_MS;
+      const deadlineAt = analysisDeadlineAt;
+      for (const window of orderedWindows(
+        normalized,
+        env.OPENROUTER_ANALYSIS_WINDOW_SIZE,
+      )) {
+        if (resultBudget.full) break;
+        lease.assertActive();
+        const preparedWindow = await mapConcurrentOrdered(
+          window.items,
+          env.OPENROUTER_SCORING_CONCURRENCY,
+          (item) =>
+            prepareCandidate({ item, search, analysisDeadlineAt: deadlineAt }),
+        );
+        for (const prepared of preparedWindow) {
+          if (resultBudget.full) break;
+          lease.assertActive();
+          processed += 1;
+          if (prepared.disposition === "excluded") {
+            exclusionReasons[prepared.reason] =
+              (exclusionReasons[prepared.reason] ?? 0) + 1;
+            continue;
+          }
+          const identityKey = prospectIdentityKey(prepared.item);
+          if (deliveredIdentityKeys.has(identityKey)) continue;
+          if (prepared.disposition === "existing") {
+            await attachExistingEvidence({
+              prepared,
+              search,
+              dataSourceRecordId: dataSourceRecord.id,
+            });
+            resultBudget.add(prepared.existing.id);
+            deliveredIdentityKeys.add(identityKey);
+            continue;
+          }
+          if (prepared.analysis.usedFallback) {
+            aiFallback += 1;
+            if (prepared.analysis.fallbackReason === "budget_exhausted") {
+              aiBudgetFallback += 1;
+            }
+          } else {
+            aiSucceeded += 1;
+          }
+          let outcome;
+          try {
+            outcome =
+              prepared.item.mode === "B2B"
+                ? await storeB2B({
+                    item: prepared.item,
+                    search,
+                    dataSourceRecordId: dataSourceRecord.id,
+                    deterministic: prepared.deterministic,
+                    analysis: prepared.analysis,
+                    rank: resultBudget.count + 1,
+                  })
+                : await storeB2C({
+                    item: prepared.item,
+                    search,
+                    dataSourceRecordId: dataSourceRecord.id,
+                    deterministic: prepared.deterministic,
+                    analysis: prepared.analysis,
+                    rank: resultBudget.count + 1,
+                  });
+          } catch (error) {
+            if (error instanceof ScoreThresholdError) {
+              exclusionReasons.below_score_threshold =
+                (exclusionReasons.below_score_threshold ?? 0) + 1;
+              continue;
+            }
+            throw error;
+          }
+          if (outcome) {
+            if (prepared.item.mode === "B2B" && outcome.result.companyId) {
+              companyIntelligenceQueue.push({
+                workspaceId: search.workspaceId,
+                companyId: outcome.result.companyId,
+                searchResultId: outcome.result.id,
+                item: prepared.item,
+                deterministic: prepared.deterministic,
+                analysis: prepared.analysis,
+                query: search.query,
+                purpose: search.purpose,
+                userId: search.createdById,
+                deadlineAt,
+              });
+            }
+            if (!resultBudget.add(outcome.result.id)) {
+              throw new Error(
+                "Delivered result count exceeds the target limit",
+              );
+            }
+            deliveredIdentityKeys.add(identityKey);
+          } else {
+            exclusionReasons.identity_or_permission_conflict =
+              (exclusionReasons.identity_or_permission_conflict ?? 0) + 1;
+          }
+        }
+        await updateJob(
+          payload.jobId,
+          runToken,
+          "SCORING",
+          Math.max(
+            providerPasses === 1 ? 55 : 80,
+            analysisStageProgress({
+              processed,
+              eligible,
+              delivered: resultBudget.count,
+              target: search.targetCount,
+            }),
+          ),
+        );
+      }
+      if (resultBudget.full) break;
+      const refillTarget = candidateRefillTarget({
+        delivered: resultBudget.count,
+        requested: search.targetCount,
+        received: source.items.length,
+        candidateTarget: currentProviderTarget,
+      });
+      if (providerPasses === 1 && refillTarget !== null) {
+        currentProviderTarget = refillTarget;
+        checkpoint = undefined;
+        await updateJob(payload.jobId, runToken, "SEARCHING_COMPANIES", 75);
+        continue;
+      }
+      providerExhausted = true;
+      break;
     }
     if (companyIntelligenceQueue.length) {
       await updateJob(payload.jobId, runToken, "PREPARING_RESULTS", 92);
@@ -1628,12 +1716,21 @@ export async function processSearchJob(payload: {
     const count = await db.searchResult.count({
       where: { searchId: search.id },
     });
+    const completionStatus =
+      count === search.targetCount
+        ? ("COMPLETE" as const)
+        : ("PARTIAL" as const);
     await db.$transaction(
       async (tx) => {
         const freshSearch = await tx.search.findUniqueOrThrow({
           where: { id: search.id },
         });
-        if (freshSearch.chargedAt || freshSearch.status === "COMPLETE") return;
+        if (
+          freshSearch.chargedAt ||
+          freshSearch.status === "COMPLETE" ||
+          freshSearch.status === "PARTIAL"
+        )
+          return;
         const jobClaim = await tx.searchJob.updateMany({
           where: {
             id: payload.jobId,
@@ -1649,11 +1746,14 @@ export async function processSearchJob(payload: {
             heartbeatAt: new Date(),
             runToken: null,
             metrics: {
-              received: source.items.length,
+              received,
               requested: search.targetCount,
-              candidateTarget: providerTargetCount,
-              deduplicated: deduped.length,
-              eligible: normalized.length,
+              candidateTarget: candidateTargets.at(-1) ?? initialProviderTarget,
+              candidateTargets,
+              providerPasses,
+              providerExhausted,
+              deduplicated,
+              eligible,
               processed,
               stored: count,
               analysis: {
@@ -1724,7 +1824,7 @@ export async function processSearchJob(payload: {
         await tx.search.update({
           where: { id: search.id },
           data: {
-            status: "COMPLETE",
+            status: completionStatus,
             chargedCredits: count,
             chargedAt: new Date(),
             reservationReleasedAt: new Date(),
@@ -1736,8 +1836,14 @@ export async function processSearchJob(payload: {
             workspaceId: search.workspaceId,
             userId: search.createdById,
             type: "SEARCH_COMPLETE",
-            title: "Search complete",
-            message: `${count} prospects are ready to review.`,
+            title:
+              completionStatus === "COMPLETE"
+                ? "Search complete"
+                : "Qualified source exhausted",
+            message:
+              completionStatus === "COMPLETE"
+                ? `${count} qualified prospects are ready to review.`
+                : `${count} of ${search.targetCount} qualified prospects were available. Only delivered records were charged.`,
             actionUrl: `/search/${search.id}`,
           },
         });
@@ -1747,10 +1853,17 @@ export async function processSearchJob(payload: {
     await writeAudit({
       workspaceId: search.workspaceId,
       actorId: search.createdById,
-      action: "search.complete",
+      action:
+        completionStatus === "COMPLETE" ? "search.complete" : "search.partial",
       entityType: "search",
       entityId: search.id,
-      metadata: { resultCount: count, provider: source.provenance.provider },
+      metadata: {
+        resultCount: count,
+        requestedCount: search.targetCount,
+        providers: Array.from(sourceProviders),
+        providerPasses,
+        providerExhausted,
+      },
     });
     return { resultCount: count };
   } catch (error) {
@@ -1762,7 +1875,11 @@ export async function processSearchJob(payload: {
     const afterFailure = await db.search.findUniqueOrThrow({
       where: { id: search.id },
     });
-    if (afterFailure.chargedAt || afterFailure.status === "COMPLETE") {
+    if (
+      afterFailure.chargedAt ||
+      afterFailure.status === "COMPLETE" ||
+      afterFailure.status === "PARTIAL"
+    ) {
       return {
         resultCount: await db.searchResult.count({
           where: { searchId: search.id },

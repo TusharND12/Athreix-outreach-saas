@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   candidateCollectionTarget,
+  candidateRefillTarget,
   meetsScoreThreshold,
   selectTopQualified,
 } from "@/server/qualification";
 
 describe("qualified lead delivery targets", () => {
   it.each([
-    [1, 3],
-    [10, 30],
-    [25, 75],
-    [100, 300],
+    [1, 12],
+    [10, 120],
+    [25, 300],
+    [100, 1_000],
   ])(
     "collects extra candidates for a requested count of %i",
     (requested, expectedCandidates) => {
@@ -21,9 +22,48 @@ describe("qualified lead delivery targets", () => {
   );
 
   it("collects more candidates for strict qualification without exceeding the provider cap", () => {
-    expect(candidateCollectionTarget(10, { scoreThreshold: 80 })).toBe(50);
+    expect(candidateCollectionTarget(10, { scoreThreshold: 80 })).toBe(150);
+    expect(candidateCollectionTarget(10, { scoreThreshold: 0 })).toBe(100);
     expect(candidateCollectionTarget(500, { scoreThreshold: 80 })).toBe(1_000);
     expect(candidateCollectionTarget(1_000, { scoreThreshold: 0 })).toBe(1_000);
+  });
+
+  it("refills a saturated pool when the requested qualified count is still short", () => {
+    expect(
+      candidateRefillTarget({
+        delivered: 5,
+        requested: 10,
+        received: 120,
+        candidateTarget: 120,
+      }),
+    ).toBe(1_000);
+  });
+
+  it("does not refill an exhausted, complete, or already-maximized pool", () => {
+    expect(
+      candidateRefillTarget({
+        delivered: 5,
+        requested: 10,
+        received: 119,
+        candidateTarget: 120,
+      }),
+    ).toBeNull();
+    expect(
+      candidateRefillTarget({
+        delivered: 10,
+        requested: 10,
+        received: 120,
+        candidateTarget: 120,
+      }),
+    ).toBeNull();
+    expect(
+      candidateRefillTarget({
+        delivered: 5,
+        requested: 10,
+        received: 1_000,
+        candidateTarget: 1_000,
+      }),
+    ).toBeNull();
   });
 
   it("returns exactly the requested number of highest-scoring qualified leads", () => {

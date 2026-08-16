@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   RefreshCw,
   ShieldCheck,
+  TriangleAlert,
   XCircle,
 } from "lucide-react";
 import { jobStages } from "@/lib/demo/data";
@@ -401,24 +402,42 @@ export function CompletedRunSummary({
   count = 0,
   chargedCredits,
   targetCount,
+  status,
 }: {
   mode?: ResearchMode;
   count?: number;
   chargedCredits?: number;
   targetCount?: number;
+  status?: string;
 }) {
+  const partial =
+    status?.toUpperCase() === "PARTIAL" ||
+    (targetCount !== undefined && count < targetCount);
   const countLabel =
-    targetCount !== undefined && count < targetCount
+    partial && targetCount !== undefined
       ? `${count} of ${targetCount} qualified leads found`
       : `${count} qualified lead${count === 1 ? "" : "s"} delivered`;
   return (
     <details className="group rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-100">
-        <span className="flex size-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-          <Check className="size-3.5" />
+        <span
+          className={cx(
+            "flex size-6 items-center justify-center rounded-full",
+            partial
+              ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+              : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+          )}
+        >
+          {partial ? (
+            <TriangleAlert className="size-3.5" />
+          ) : (
+            <Check className="size-3.5" />
+          )}
         </span>
         <span className="font-medium text-zinc-900 dark:text-zinc-100">
-          Research run completed successfully
+          {partial
+            ? "Qualified source exhausted before the requested count"
+            : "Requested qualified lead count delivered"}
         </span>
         <span className="ml-auto text-xs text-zinc-500">
           {jobStages.length} stages · {countLabel}
@@ -426,6 +445,14 @@ export function CompletedRunSummary({
           {mode === "b2c" ? " · permission controls applied" : ""}
         </span>
       </summary>
+      {partial ? (
+        <p className="border-t border-zinc-200 px-4 py-3 text-xs leading-5 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+          Athreix expanded the candidate search, removed duplicates, and kept
+          only records that passed the selected filters and qualification
+          checks. No leads were fabricated, and only delivered records were
+          charged.
+        </p>
+      ) : null}
       <div className="grid gap-3 border-t border-zinc-200 px-4 py-4 text-xs sm:grid-cols-3 dark:border-zinc-800">
         {jobStages.map((stage) => (
           <div
