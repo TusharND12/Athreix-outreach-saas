@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
 const emptyAsUndefined = (value: unknown) => (value === "" ? undefined : value);
@@ -506,7 +507,10 @@ export const env = {
   AUTH_SECRET:
     raw.AUTH_SECRET ??
     (raw.NODE_ENV === "production"
-      ? "athreix-production-auth-secret-not-configured"
+      ? // A missing production secret must fail closed. A static, source-visible
+        // fallback would let anyone forge session JWTs; an unguessable per-process
+        // value keeps all sessions invalid instead (see env.authHardened gates).
+        randomBytes(32).toString("hex")
       : "athreix-local-demo-secret-change-before-production-2026"),
   actorAllowlist,
   actorReviews,

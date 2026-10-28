@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { databaseIsReachable } from "@/lib/server/db";
 import { env } from "@/lib/server/env";
@@ -8,7 +9,27 @@ import {
 import { billingProviderIsReachable } from "@/lib/server/paddle";
 import { queueIsReachable } from "@/server/job-queue";
 
-export async function GET() {
+function equalSecret(received: string, expected: string) {
+  const left = Buffer.from(received);
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+// The public probe reveals only liveness. Detailed component and configuration
+// readiness is reconnaissance material, so it is disclosed only to a caller that
+// presents CRON_SECRET (the same credential the monitoring/retention crons use).
+function healthDetailAuthorized(request: Request) {
+  if (!env.CRON_SECRET) return env.NODE_ENV !== "production";
+  const authorization = request.headers.get("authorization") ?? "";
+  const headerSecret = request.headers.get("x-cron-secret") ?? "";
+  const candidate = authorization.startsWith("Bearer ")
+    ? authorization.slice(7)
+    : headerSecret;
+  return Boolean(candidate) && equalSecret(candidate, env.CRON_SECRET);
+}
+
+export async function GET(request: Request) {
+  const detailed = healthDetailAuthorized(request);
   const [database, authentication, queue, storage, billingProvider] =
     await Promise.all([
       databaseIsReachable(),
@@ -84,6 +105,19 @@ export async function GET() {
       env.cronReady &&
       env.productionAppUrlReady &&
       env.productionAuthUrlReady);
+  if (!detailed) {
+    return NextResponse.json(
+      {
+        status: productionReady ? "ok" : "degraded",
+        timestamp: new Date().toISOString(),
+      },
+      {
+        status: productionReady ? 200 : 503,
+        headers: { "cache-control": "no-store" },
+      },
+    );
+  }
+
   return NextResponse.json(
     {
       status: productionReady ? "ok" : "degraded",
